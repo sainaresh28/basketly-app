@@ -5,8 +5,8 @@ internship project. It goes beyond a static UI: it has a real backend, a designe
 database schema on AWS DynamoDB, authenticated sessions, and business logic for
 cart/wishlist management, all wired into a modern Next.js frontend.
 
-> **Live demo:** _add your deployed URL here_
-> **Repository:** _add your GitHub URL here_
+> **Live demo:** [https://basketly-app.vercel.app]
+> **Repository:** [https://github.com/sainaresh28/basketly-app]
 
 ---
 
