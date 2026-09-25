@@ -4,12 +4,18 @@
 # next.js
 /.next/
 /out/
-tsconfig.tsbuildinfo
 
-# env files (never commit real secrets)
+# production
+/build
+
+# env files - never commit real credentials
 .env
 .env.local
 .env.*.local
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
 
 # misc
 .DS_Store

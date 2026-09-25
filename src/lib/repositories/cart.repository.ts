@@ -1,4 +1,4 @@
-import { DeleteCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '@/lib/db/client';
 import { TABLES } from '@/lib/db/tables';
 
@@ -65,5 +65,17 @@ export const CartRepository = {
   async clearForUser(userId: string): Promise<void> {
     const items = await this.findAllForUser(userId);
     await Promise.all(items.map((i) => this.removeItem(userId, i.productId)));
+  },
+
+  /** Admin-only: every cart line item across every user, for the admin dashboard. */
+  async findAll(): Promise<CartItemRecord[]> {
+    const items: CartItemRecord[] = [];
+    let ExclusiveStartKey: Record<string, unknown> | undefined;
+    do {
+      const res = await ddb.send(new ScanCommand({ TableName: TABLES.CART, ExclusiveStartKey }));
+      items.push(...((res.Items as CartItemRecord[]) || []));
+      ExclusiveStartKey = res.LastEvaluatedKey;
+    } while (ExclusiveStartKey);
+    return items;
   },
 };

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AppIcon from '@/components/ui/AppIcon';
 import { formatPrice } from '@/utils/format';
 import { CANCELLABLE_STATUSES, type Order, type OrderStatus } from '@/types';
+import PrinterInvoiceModal from './PrinterInvoiceModal';
 
 const TRACK_STEPS: OrderStatus[] = ['pending', 'paid', 'processing', 'shipped', 'delivered'];
 const STEP_LABEL: Record<OrderStatus, string> = {
@@ -43,10 +44,10 @@ function TrackingTimeline({ order }: { order: Order }) {
             <div key={step} className="flex-1 flex flex-col items-center text-center">
               <div className="flex w-full items-center">
                 <div className={`h-0.5 flex-1 ${idx === 0 ? 'opacity-0' : done ? 'bg-primary' : 'bg-border'}`} />
-                <div className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${
                   done ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground'
                 }`}>
-                  {done ? '✓' : idx + 1}
+                  {done ? <AppIcon name="CheckIcon" size={15} className="text-white" /> : idx + 1}
                 </div>
                 <div className={`h-0.5 flex-1 ${idx === TRACK_STEPS.length - 1 ? 'opacity-0' : done ? 'bg-primary' : 'bg-border'}`} />
               </div>
@@ -76,6 +77,7 @@ export default function OrderDetailView({ orderId }: { orderId: string }) {
   const [cancelError, setCancelError] = useState('');
   const [showCancelForm, setShowCancelForm] = useState(false);
   const [reason, setReason] = useState('');
+  const [showPrinter, setShowPrinter] = useState(false);
 
   const load = () => {
     fetch(`/api/orders/${orderId}`)
@@ -86,7 +88,7 @@ export default function OrderDetailView({ orderId }: { orderId: string }) {
 
   useEffect(load, [orderId]);
 
-  if (order === null) return <div className="max-w-[700px] mx-auto animate-pulse h-64" />;
+  if (order === null) return <div className="max-w-[700px] mx-auto h-64 animate-pulse rounded-2xl bg-muted" />;
 
   if (order === 'error') {
     return (
@@ -155,11 +157,15 @@ export default function OrderDetailView({ orderId }: { orderId: string }) {
           <span className="text-muted-foreground">
             {order.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Paid Online'} · {PAYMENT_STATUS_LABEL[order.paymentStatus]}
           </span>
-          <Link href={`/orders/${order.id}/invoice`} className="text-xs font-bold text-foreground border-b-2 border-foreground pb-0.5 hover:text-primary hover:border-primary transition-colors">
-            Download Invoice →
-          </Link>
         </div>
       </div>
+
+      <button
+        onClick={() => setShowPrinter(true)}
+        className="btn-dark mt-4 w-full py-4 text-sm rounded-full inline-flex items-center justify-center gap-2">
+        <AppIcon name="PrinterIcon" size={17} />
+        Download Invoice
+      </button>
 
       <div className="mt-6 rounded-3xl border border-border p-6">
         <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Shipping To</span>
@@ -207,6 +213,8 @@ export default function OrderDetailView({ orderId }: { orderId: string }) {
       <Link href="/products" className="mt-8 inline-block text-sm font-bold text-foreground border-b-2 border-foreground pb-1">
         Continue shopping →
       </Link>
+
+      {showPrinter && <PrinterInvoiceModal order={order} onClose={() => setShowPrinter(false)} />}
     </div>
   );
 }

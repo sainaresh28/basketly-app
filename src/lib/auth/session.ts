@@ -5,6 +5,7 @@ export interface SessionPayload {
   userId: string;
   email: string;
   name: string;
+  role: 'customer' | 'admin';
 }
 
 const COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'basketly_session';

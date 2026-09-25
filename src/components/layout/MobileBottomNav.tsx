@@ -3,6 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCartStore } from '@/lib/cart-store';
+import { useHasMounted } from '@/hooks/useHasMounted';
 
 function HomeIcon({ active }: { active: boolean }) {
   return (
@@ -49,6 +50,7 @@ function ProfileIcon({ active }: { active: boolean }) {
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const cartCount = useCartStore((s) => s.getItemCount());
+  const mounted = useHasMounted();
 
   const items = [
     { href: '/', label: 'Home', icon: HomeIcon, match: (p: string) => p === '/' },
@@ -78,7 +80,7 @@ export default function MobileBottomNav() {
             >
               <span className="relative">
                 <Icon active={active} />
-                {label === 'Cart' && cartCount > 0 && (
+                {label === 'Cart' && mounted && cartCount > 0 && (
                   <span className="absolute -top-1.5 -right-2 min-w-[1rem] h-4 px-1 flex items-center justify-center bg-primary text-white text-[9px] font-bold rounded-full leading-none">
                     {cartCount}
                   </span>

@@ -1,4 +1,4 @@
-import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, PutCommand, QueryCommand, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '@/lib/db/client';
 import { TABLES, INDEXES } from '@/lib/db/tables';
 import type { Address, User } from '@/types';
@@ -33,6 +33,22 @@ export const UserRepository = {
     return (res.Items?.[0] as UserRecord) || null;
   },
 
+  /**
+   * Returns every user account. The user base is expected to stay small
+   * enough (hundreds–low thousands) for the admin dashboard that a Scan is
+   * an acceptable trade-off, mirroring the approach used for Categories.
+   */
+  async findAll(): Promise<UserRecord[]> {
+    const items: UserRecord[] = [];
+    let ExclusiveStartKey: Record<string, unknown> | undefined;
+    do {
+      const res = await ddb.send(new ScanCommand({ TableName: TABLES.USERS, ExclusiveStartKey }));
+      items.push(...((res.Items as UserRecord[]) || []));
+      ExclusiveStartKey = res.LastEvaluatedKey;
+    } while (ExclusiveStartKey);
+    return items;
+  },
+
   async create(user: UserRecord): Promise<UserRecord> {
     await ddb.send(
       new PutCommand({
@@ -45,8 +61,8 @@ export const UserRepository = {
     return user;
   },
 
-  /** Patches arbitrary top-level fields (profile edits, address book, etc). */
-  async update(id: string, patch: Partial<Pick<User, 'name' | 'phone' | 'avatar' | 'addresses'>>): Promise<void> {
+  /** Patches arbitrary top-level fields (profile edits, address book, role, etc). */
+  async update(id: string, patch: Partial<Pick<User, 'name' | 'phone' | 'avatar' | 'addresses' | 'role' | 'email'>>): Promise<void> {
     const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
     if (entries.length === 0) return;
     const names: Record<string, string> = {};
@@ -72,6 +88,10 @@ export const UserRepository = {
 
   async setAddresses(id: string, addresses: Address[]): Promise<void> {
     await this.update(id, { addresses });
+  },
+
+  async delete(id: string): Promise<void> {
+    await ddb.send(new DeleteCommand({ TableName: TABLES.USERS, Key: { id } }));
   },
 
   /** Stores a freshly-issued password-reset token hash + expiry on the user record. */

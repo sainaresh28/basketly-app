@@ -4,6 +4,7 @@ import Link from 'next/link';
 import AppLogo from '@/components/ui/AppLogo';
 import { useCartStore } from '@/lib/cart-store';
 import { useWishlistStore } from '@/lib/wishlist-store';
+import { useHasMounted } from '@/hooks/useHasMounted';
 import { BRAND } from '@/lib/brand';
 import { formatPrice } from '@/utils/format';
 import type { Product } from '@/types';
@@ -20,6 +21,7 @@ export default function Navbar() {
   const cartCount = useCartStore(s => s.getItemCount());
   const openDrawer = useCartStore(s => s.openDrawer);
   const wishlistCount = useWishlistStore(s => s.getCount());
+  const mounted = useHasMounted();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -118,7 +120,7 @@ export default function Navbar() {
                 <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
-                {wishlistCount > 0 && (
+                {mounted && wishlistCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 min-w-[1.125rem] flex items-center justify-center bg-primary text-white text-[10px] font-bold rounded-full leading-none px-1">
                     {wishlistCount}
                   </span>
@@ -134,7 +136,7 @@ export default function Navbar() {
                 <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                 </svg>
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4.5 h-4.5 min-w-[1.125rem] flex items-center justify-center bg-primary text-white text-[10px] font-bold rounded-full leading-none px-1">
                     {cartCount}
                   </span>
@@ -192,7 +194,7 @@ export default function Navbar() {
                 className="py-3 text-base font-semibold uppercase tracking-wider text-foreground border-b border-border"
                 onClick={() => setMobileOpen(false)}
               >
-                Wishlist {wishlistCount > 0 && `(${wishlistCount})`}
+                Wishlist {mounted && wishlistCount > 0 && `(${wishlistCount})`}
               </Link>
               <Link
                 href="/account"

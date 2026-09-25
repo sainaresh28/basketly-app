@@ -1,4 +1,4 @@
-import { DeleteCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, PutCommand, QueryCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '@/lib/db/client';
 import { TABLES } from '@/lib/db/tables';
 
@@ -50,5 +50,17 @@ export const WishlistRepository = {
 
   async removeItem(userId: string, productId: string): Promise<void> {
     await ddb.send(new DeleteCommand({ TableName: TABLES.WISHLIST, Key: { userId, productId } }));
+  },
+
+  /** Admin-only: every wishlist entry across every user, for the admin dashboard. */
+  async findAll(): Promise<WishlistItemRecord[]> {
+    const items: WishlistItemRecord[] = [];
+    let ExclusiveStartKey: Record<string, unknown> | undefined;
+    do {
+      const res = await ddb.send(new ScanCommand({ TableName: TABLES.WISHLIST, ExclusiveStartKey }));
+      items.push(...((res.Items as WishlistItemRecord[]) || []));
+      ExclusiveStartKey = res.LastEvaluatedKey;
+    } while (ExclusiveStartKey);
+    return items;
   },
 };

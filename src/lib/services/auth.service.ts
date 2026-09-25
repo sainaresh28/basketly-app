@@ -42,7 +42,7 @@ export const AuthService = {
     };
 
     await UserRepository.create(record);
-    const token = await createSessionToken({ userId: record.id, email: record.email, name: record.name });
+    const token = await createSessionToken({ userId: record.id, email: record.email, name: record.name, role: record.role || 'customer' });
     return { user: toPublicUser(record), token };
   },
 
@@ -55,7 +55,7 @@ export const AuthService = {
     if (!valid) {
       throw new UnauthorizedError('Invalid email or password');
     }
-    const token = await createSessionToken({ userId: record.id, email: record.email, name: record.name });
+    const token = await createSessionToken({ userId: record.id, email: record.email, name: record.name, role: record.role || 'customer' });
     return { user: toPublicUser(record), token };
   },
 

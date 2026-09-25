@@ -1,9 +1,23 @@
 import { CartRepository, type CartItemRecord } from '@/lib/repositories/cart.repository';
 import { ProductRepository } from '@/lib/repositories/product.repository';
+import { UserRepository } from '@/lib/repositories/user.repository';
 import { ValidationError, NotFoundError } from '@/lib/errors/app-error';
 import { calculateShipping } from '@/lib/config';
 import type { AddToCartInput, MergeCartInput } from '@/lib/validation/schemas';
 import type { Cart, CartItem, Product } from '@/types';
+
+export interface AdminCartRow {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  productId: string;
+  productName: string;
+  productImage?: string;
+  quantity: number;
+  lineTotal: number;
+  addedAt: string;
+  updatedAt: string;
+}
 
 /**
  * Joins raw cart line items (userId, productId, quantity) with *live* product
@@ -106,5 +120,37 @@ export const CartService = {
       });
     }
     return this.getCart(userId);
+  },
+
+  /** Admin-only: every cart line item across every user, joined with user + product info. */
+  async listAllForAdmin(): Promise<AdminCartRow[]> {
+    const records = await CartRepository.findAll();
+    if (records.length === 0) return [];
+
+    const [products, users] = await Promise.all([
+      ProductRepository.findManyByIds(records.map((r) => r.productId)),
+      Promise.all(Array.from(new Set(records.map((r) => r.userId))).map((id) => UserRepository.findById(id))),
+    ]);
+    const productMap = new Map<string, Product>(products.map((p) => [p.id, p]));
+    const userMap = new Map(users.filter(Boolean).map((u) => [u!.id, u!]));
+
+    return records
+      .map((r) => {
+        const product = productMap.get(r.productId);
+        const user = userMap.get(r.userId);
+        return {
+          userId: r.userId,
+          userName: user?.name ?? 'Deleted user',
+          userEmail: user?.email ?? '—',
+          productId: r.productId,
+          productName: product?.name ?? 'Deleted product',
+          productImage: product?.images?.[0],
+          quantity: r.quantity,
+          lineTotal: (product?.price ?? 0) * r.quantity,
+          addedAt: r.addedAt,
+          updatedAt: r.updatedAt,
+        };
+      })
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
   },
 };

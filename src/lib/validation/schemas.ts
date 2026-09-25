@@ -164,3 +164,24 @@ export const productQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 export type ProductQuery = z.infer<typeof productQuerySchema>;
+
+// --- Admin: category management ---------------------------------------------
+export const adminCategorySchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  slug: z.string().trim().min(2).max(100).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and hyphens only'),
+  description: z.string().trim().min(0).max(1000).default(''),
+  image: z.string().trim().url('Enter a valid image URL'),
+  featured: z.boolean().optional(),
+});
+export type AdminCategoryInput = z.infer<typeof adminCategorySchema>;
+
+export const adminCategoryUpdateSchema = adminCategorySchema.partial();
+export type AdminCategoryUpdateInput = z.infer<typeof adminCategoryUpdateSchema>;
+
+// --- Admin: user management ---------------------------------------------
+export const adminUserUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  phone: z.string().trim().min(7).max(15).optional().or(z.literal('')),
+  role: z.enum(['customer', 'admin']).optional(),
+});
+export type AdminUserUpdateInput = z.infer<typeof adminUserUpdateSchema>;

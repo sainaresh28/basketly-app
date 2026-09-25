@@ -1,6 +1,8 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { formatPrice } from '@/utils/format';
+import Pagination from './ui/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import type { Order, OrderStatus } from '@/types';
 
 const STATUSES: OrderStatus[] = ['pending', 'paid', 'processing', 'shipped', 'delivered', 'cancelled'];
@@ -59,6 +61,8 @@ export default function AdminOrdersView() {
   };
 
   const visible = orders?.filter((o) => filter === 'all' || o.status === filter) ?? [];
+  const { page, setPage, totalPages, pageSize, paged, totalItems } = usePagination(visible);
+  useEffect(() => setPage(1), [filter, setPage]);
 
   return (
     <div>
@@ -72,7 +76,7 @@ export default function AdminOrdersView() {
       </div>
 
       {!orders ? (
-        <div className="mt-6 animate-pulse h-64" />
+        <div className="mt-6 h-64 animate-pulse rounded-2xl bg-muted" />
       ) : visible.length === 0 ? (
         <p className="mt-6 text-sm text-muted-foreground">No orders match this filter.</p>
       ) : (
@@ -90,7 +94,7 @@ export default function AdminOrdersView() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((o) => (
+              {paged.map((o) => (
                 <React.Fragment key={o.id}>
                   <tr className="border-t border-border align-top">
                     <td className="px-4 py-3 font-semibold text-foreground">#{o.id.slice(0, 8).toUpperCase()}</td>
@@ -155,6 +159,7 @@ export default function AdminOrdersView() {
               ))}
             </tbody>
           </table>
+          <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={setPage} />
         </div>
       )}
     </div>

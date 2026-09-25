@@ -370,9 +370,16 @@ All responses are shaped `{ success: true, data }` or
 | GET | `/api/orders/:id` | ✅ | One order's detail (must belong to you) |
 | GET/POST | `/api/admin/products` | 🛡️ | List all products / create a product |
 | PUT/DELETE | `/api/admin/products/:id` | 🛡️ | Update / delete a product |
+| GET/POST | `/api/admin/categories` | 🛡️ | List all categories / create a category |
+| PUT/DELETE | `/api/admin/categories/:id` | 🛡️ | Update / delete a category |
+| GET | `/api/admin/users` | 🛡️ | List all users |
+| GET/PUT/DELETE | `/api/admin/users/:id` | 🛡️ | View, update, or delete one user |
+| GET | `/api/admin/cart` | 🛡️ | View all users' cart contents |
+| GET | `/api/admin/wishlist` | 🛡️ | View all users' wishlist contents |
 | GET | `/api/admin/orders` | 🛡️ | All orders |
 | PATCH | `/api/admin/orders/:id` | 🛡️ | Update an order's status |
-| GET | `/api/admin/stats` | 🛡️ | Dashboard metrics |
+| POST | `/api/admin/orders/:id/refund` | 🛡️ | Refund an order via Razorpay |
+| GET | `/api/admin/stats` | 🛡️ | Dashboard metrics (users, products, categories, cart/wishlist counts, revenue) |
 
 ✅ = requires a signed-in session. 🛡️ = requires a signed-in **admin** session
 (returns `403 FORBIDDEN` for non-admins).
@@ -420,10 +427,22 @@ npm run make-admin -- you@example.com
 ```
 
 What you can do from `/admin`:
-- **Overview** — revenue, order count, low/out-of-stock alerts, a 7-day revenue chart
-- **Products & Inventory** — add/edit/delete products, adjust stock inline
-- **Orders** — view every order, filter by status, move an order through
-  `pending → paid → processing → shipped → delivered` (or `cancelled`)
+- **Overview** (`/admin`) — total users, total products, total categories,
+  cart items, wishlist items, revenue, order count, low/out-of-stock alerts,
+  and a 7-day revenue chart
+- **Products & Inventory** (`/admin/products`) — add, edit, delete products
+  and adjust stock inline, with search, filtering, and pagination
+- **Categories** (`/admin/categories`) — add, edit, and delete categories
+- **Users** (`/admin/users`) — view all users, drill into a user's detail
+  page, update user information, delete a user
+- **Cart & Wishlist** (`/admin/cart-wishlist`) — view every user's current
+  cart and wishlist contents and the underlying product/user relationships
+- **Orders** (`/admin/orders`) — view every order, filter by status, move an
+  order through `pending → paid → processing → shipped → delivered` (or
+  `cancelled`)
+- Every destructive action (delete product, delete category, delete user)
+  shows a confirmation dialog first, and every list/detail view has explicit
+  loading, empty, and error states
 
 ## 12. How Guest → Signed-in Cart/Wishlist Works
 
@@ -450,18 +469,3 @@ What you can do from `/admin`:
 - Passwords are hashed with bcrypt before ever touching the database; the hash
   is stripped out of every API response.
 
-## 14. Deployment Notes
-
-- The app builds as a standard Next.js app; deploy to Netlify or Vercel.
-- Set every variable from `.env.example` in your hosting provider's
-  environment variable settings — do not commit `.env.local`.
-- Run `npm run db:setup` once against your production AWS account/tables
-  before (or right after) your first deploy.
-- `sitemap.ts`, the homepage, `/products`, and `/product-detail` are marked
-  `export const dynamic = 'force-dynamic'` since they read live data from
-  DynamoDB — they render per-request rather than being baked in at build time.
-
-## 15. Screenshots
-
-_Add screenshots of the homepage, product listing, product detail, cart,
-wishlist, and account pages here before submission._
