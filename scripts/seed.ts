@@ -6,7 +6,7 @@
  */
 import 'dotenv/config';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, BatchWriteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { CATEGORIES, PRODUCTS } from '../src/lib/mock-data';
 import { buildBrandRecords } from '../src/lib/catalog/brands';
 
@@ -27,7 +27,38 @@ const TABLES = {
   PRODUCTS: process.env.DYNAMODB_PRODUCTS_TABLE || 'basketly-products',
   CATEGORIES: process.env.DYNAMODB_CATEGORIES_TABLE || 'basketly-categories',
   BRANDS: process.env.DYNAMODB_BRANDS_TABLE || 'basketly-brands',
+  COUPONS: process.env.DYNAMODB_COUPONS_TABLE || 'basketly-coupons',
 };
+
+/**
+ * Starter coupons so the storefront's own promo banner ("Use code FIRST10
+ * for 10% off") actually works out of the box, instead of advertising a
+ * code nothing backs. Seeding is upsert-by-code (see batchWrite), so
+ * re-running this is safe and won't reset usedCount on a coupon that's
+ * already been redeemed by a real customer — it will, however, overwrite
+ * any other field you've since changed via the admin API. Edit the values
+ * below (or just create more via POST /api/admin/coupons) as needed.
+ */
+const COUPONS: Record<string, unknown>[] = [
+  {
+    code: 'FIRST10',
+    type: 'percent',
+    value: 10,
+    minOrderValue: 0,
+    usedCount: 0,
+    active: true,
+    description: '10% off your first order',
+  },
+  {
+    code: 'FLAT150',
+    type: 'flat',
+    value: 150,
+    minOrderValue: 999,
+    usedCount: 0,
+    active: true,
+    description: '₹150 off orders over ₹999',
+  },
+];
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -95,6 +126,23 @@ async function main() {
 
   console.log(`Seeding ${PRODUCTS.length} products...`);
   await batchWrite(TABLES.PRODUCTS, PRODUCTS as unknown as Record<string, unknown>[]);
+
+  // Coupons are seeded create-only (skip any code that already exists)
+  // rather than upserted, so re-running this script never resets a real
+  // coupon's usedCount or clobbers edits made since via the admin API.
+  console.log(`Seeding starter coupons...`);
+  const newCoupons: Record<string, unknown>[] = [];
+  for (const coupon of COUPONS) {
+    const existing = await ddb.send(new GetCommand({ TableName: TABLES.COUPONS, Key: { code: coupon.code } }));
+    if (existing.Item) {
+      console.log(`  ${coupon.code} already exists — skipping`);
+    } else {
+      newCoupons.push(coupon);
+    }
+  }
+  if (newCoupons.length > 0) {
+    await batchWrite(TABLES.COUPONS, newCoupons);
+  }
 
   console.log('\nSeed complete.');
 }
