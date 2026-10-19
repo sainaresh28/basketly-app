@@ -132,8 +132,6 @@ export const ChevronDownIcon = (p: IconProps) => base(<path d="m6 9 6 6 6-6" />,
 
 export const ChevronRightIcon = (p: IconProps) => base(<path d="m9 18 6-6-6-6" />, p);
 
-export const ChevronLeftIcon = (p: IconProps) => base(<path d="m15 18-6-6 6-6" />, p);
-
 export const LogoutIcon = (p: IconProps) =>
   base(
     <>

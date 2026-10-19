@@ -7,8 +7,8 @@ import { OrderService } from '@/lib/services/order.service';
 export const POST = withErrorHandling(async (req: Request) => {
   const session = await requireSession();
   const body = await req.json();
-  const { shippingAddress } = codOrderSchema.parse(body);
+  const { shippingAddress, couponCode } = codOrderSchema.parse(body);
 
-  const order = await OrderService.placeCodOrder(session.userId, shippingAddress);
+  const order = await OrderService.placeCodOrder(session.userId, shippingAddress, couponCode);
   return ok({ order }, 201);
 });

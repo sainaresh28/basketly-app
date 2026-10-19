@@ -1,8 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import Pagination from './ui/Pagination';
-import { usePagination } from '@/hooks/usePagination';
 import type { Category } from '@/types';
 
 export default function AdminCategoriesView() {
@@ -22,9 +20,6 @@ export default function AdminCategoriesView() {
     if (!q) return categories;
     return categories.filter((c) => c.name.toLowerCase().includes(q) || c.slug.toLowerCase().includes(q));
   }, [categories, search]);
-
-  const { page, setPage, totalPages, pageSize, paged, totalItems } = usePagination(visible);
-  useEffect(() => setPage(1), [search, setPage]);
 
   const handleDelete = async (category: Category) => {
     if (!confirm(`Delete "${category.name}"? This can't be undone.`)) return;
@@ -77,7 +72,7 @@ export default function AdminCategoriesView() {
               </tr>
             </thead>
             <tbody>
-              {paged.map((c) => (
+              {visible.map((c) => (
                 <tr key={c.id} className="border-t border-border">
                   <td className="px-4 py-3 font-semibold text-foreground max-w-[240px] truncate">
                     <div className="flex items-center gap-3">
@@ -101,7 +96,6 @@ export default function AdminCategoriesView() {
               ))}
             </tbody>
           </table>
-          <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={setPage} />
         </div>
       )}
     </div>

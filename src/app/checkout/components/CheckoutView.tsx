@@ -42,6 +42,10 @@ export default function CheckoutView() {
   const [error, setError] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
   const [savedAddresses, setSavedAddresses] = useState<Address[]>([]);
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [couponStatus, setCouponStatus] = useState<'idle' | 'checking' | 'error'>('idle');
+  const [couponError, setCouponError] = useState('');
 
   useEffect(() => {
     if (!user) return;
@@ -77,7 +81,37 @@ export default function CheckoutView() {
 
   const subtotal = getSubtotal();
   const shipping = subtotal === 0 || subtotal >= 1999 ? 0 : 149;
-  const total = subtotal + shipping;
+  const discount = appliedCoupon?.discount ?? 0;
+  const total = Math.max(0, subtotal + shipping - discount);
+
+  const applyCoupon = async () => {
+    const code = couponInput.trim();
+    if (!code) return;
+    setCouponStatus('checking');
+    setCouponError('');
+    try {
+      const res = await fetch('/api/coupons/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, subtotal }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json?.error?.message || 'Invalid coupon code');
+      setAppliedCoupon({ code: json.data.code, discount: json.data.discount });
+      setCouponStatus('idle');
+    } catch (err) {
+      setAppliedCoupon(null);
+      setCouponStatus('error');
+      setCouponError(err instanceof Error ? err.message : 'Invalid coupon code');
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput('');
+    setCouponStatus('idle');
+    setCouponError('');
+  };
 
   const updateField = (field: keyof ShippingAddress) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setAddress((prev) => ({ ...prev, [field]: e.target.value }));
@@ -99,7 +133,7 @@ export default function CheckoutView() {
         const res = await fetch('/api/checkout/cod', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shippingAddress: address }),
+          body: JSON.stringify({ shippingAddress: address, couponCode: appliedCoupon?.code }),
         });
         const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json?.error?.message || 'Could not place your order');
@@ -115,7 +149,11 @@ export default function CheckoutView() {
 
     setStatus('processing');
     try {
-      const createRes = await fetch('/api/checkout/create-order', { method: 'POST' });
+      const createRes = await fetch('/api/checkout/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ couponCode: appliedCoupon?.code }),
+      });
       const createJson = await createRes.json();
       if (!createRes.ok || !createJson.success) {
         throw new Error(createJson?.error?.message || 'Could not start checkout');
@@ -141,7 +179,7 @@ export default function CheckoutView() {
             const verifyRes = await fetch('/api/checkout/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...response, shippingAddress: address }),
+              body: JSON.stringify({ ...response, shippingAddress: address, couponCode: appliedCoupon?.code }),
             });
             const verifyJson = await verifyRes.json();
             if (!verifyRes.ok || !verifyJson.success) {
@@ -236,7 +274,7 @@ export default function CheckoutView() {
               <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Items ({items.length})</span>
               <div className="mt-3 space-y-2">
                 {items.map((i) => (
-                  <div key={i.productId} className="flex justify-between text-sm">
+                  <div key={i.lineId} className="flex justify-between text-sm">
                     <span className="text-foreground line-clamp-1">{i.product.name} × {i.quantity}</span>
                     <span className="font-semibold text-foreground shrink-0 ml-3">{formatPrice(i.product.price * i.quantity)}</span>
                   </div>
@@ -249,7 +287,47 @@ export default function CheckoutView() {
             <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Order Summary</span>
             <div className="mt-5 space-y-3 border-b border-border pb-5 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Subtotal</span><span className="font-semibold text-foreground">{formatPrice(subtotal)}</span></div>
+              {appliedCoupon && (
+                <div className="flex justify-between text-green-600">
+                  <span>Discount ({appliedCoupon.code})</span><span className="font-semibold">-{formatPrice(appliedCoupon.discount)}</span>
+                </div>
+              )}
               <div className="flex justify-between"><span className="text-muted-foreground">Delivery</span><span className="font-semibold text-foreground">{shipping ? formatPrice(shipping) : 'Free'}</span></div>
+            </div>
+
+            <div className="py-4 border-b border-border">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between rounded-xl border border-green-200 bg-green-50 px-3.5 py-2.5 dark:border-green-900 dark:bg-green-950/30">
+                  <span className="text-xs font-bold text-green-700 dark:text-green-400">
+                    &ldquo;{appliedCoupon.code}&rdquo; applied
+                  </span>
+                  <button type="button" onClick={removeCoupon} className="text-xs font-semibold text-muted-foreground hover:text-foreground">
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Coupon code"
+                      className="flex-1 rounded-xl border border-border px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wide focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={couponStatus === 'checking' || !couponInput.trim()}
+                      className="rounded-xl border border-foreground px-4 py-2.5 text-xs font-bold text-foreground hover:bg-foreground hover:text-background transition-colors disabled:opacity-50"
+                    >
+                      {couponStatus === 'checking' ? 'Checking…' : 'Apply'}
+                    </button>
+                  </div>
+                  {couponStatus === 'error' && couponError && (
+                    <p className="mt-2 text-xs font-semibold text-primary">{couponError}</p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="flex justify-between py-5 text-lg font-bold text-foreground">
               <span>Total</span><span>{formatPrice(total)}</span>

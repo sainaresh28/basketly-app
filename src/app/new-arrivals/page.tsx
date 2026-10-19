@@ -8,6 +8,7 @@ import ToastContainer from '@/components/layout/ToastContainer';
 import AppImage from '@/components/ui/AppImage';
 import ProductGrid from '@/app/products/components/ProductGrid';
 import { ProductService } from '@/lib/services/product.service';
+import { safe } from '@/lib/safe';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NewArrivalsPage() {
-  const products = await ProductService.getNewArrivals(60);
+  const products = await safe(ProductService.getNewArrivals(60), [], 'ProductService.getNewArrivals');
 
   return (
     <>
@@ -47,7 +48,7 @@ export default async function NewArrivalsPage() {
                   className="object-cover opacity-70"
                 />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-foreground via-foreground/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-dark-surface/40 to-transparent" />
               <div className="relative z-10">
                 <span className="badge-new mb-3 inline-block">Just Dropped</span>
                 <h1 className="font-display font-black text-white text-display-xl uppercase leading-none mb-3">

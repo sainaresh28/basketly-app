@@ -45,7 +45,7 @@ export default function PromotionalSection() {
                 Timepieces<br />& Accessories
               </h2>
               <p className="text-foreground/70 text-sm mb-6 max-w-xs">Curated watches and everyday carry for the modern person.</p>
-              <Link href="/products?category=watches" className="btn-dark py-3 px-6 text-xs">
+              <Link href="/products?category=jewelry-watches" className="btn-dark py-3 px-6 text-xs">
                 Explore Now
               </Link>
             </div>

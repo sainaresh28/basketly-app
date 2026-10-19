@@ -26,11 +26,33 @@ export const resetPasswordSchema = z.object({
 });
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const notificationPreferencesSchema = z.object({
+  orderUpdates: z.boolean().optional(),
+  offers: z.boolean().optional(),
+  wishlistAlerts: z.boolean().optional(),
+  priceDrops: z.boolean().optional(),
+});
+
+export const preferencesSchema = z.object({
+  theme: z.enum(['light', 'dark']).optional(),
+  personalizedRecommendations: z.boolean().optional(),
+  notifications: notificationPreferencesSchema.optional(),
+});
+export type PreferencesInput = z.infer<typeof preferencesSchema>;
+
 export const updateProfileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters').max(80).optional(),
   phone: z.string().trim().min(7).max(15).optional().or(z.literal('')),
+  preferences: preferencesSchema.optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+export const createReviewSchema = z.object({
+  orderId: z.string().min(1),
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().trim().min(3, 'Tell us a bit more (at least 3 characters)').max(1000),
+});
+export type CreateReviewInput = z.infer<typeof createReviewSchema>;
 
 // --- Addresses ---------------------------------------------------------------
 export const addressInputSchema = z.object({
@@ -49,11 +71,12 @@ export const addressUpdateSchema = addressInputSchema.partial();
 export type AddressUpdateInput = z.infer<typeof addressUpdateSchema>;
 
 // --- Cart -----------------------------------------------------------------
+const selectedOptionsSchema = z.record(z.string().max(40)).optional();
+
 export const addToCartSchema = z.object({
   productId: z.string().min(1),
   quantity: z.number().int().min(1).max(20).default(1),
-  selectedSize: z.string().max(20).optional(),
-  selectedColor: z.string().max(30).optional(),
+  selectedOptions: selectedOptionsSchema,
 });
 export type AddToCartInput = z.infer<typeof addToCartSchema>;
 
@@ -68,8 +91,7 @@ export const mergeCartSchema = z.object({
       z.object({
         productId: z.string().min(1),
         quantity: z.number().int().min(1).max(20),
-        selectedSize: z.string().max(20).optional(),
-        selectedColor: z.string().max(30).optional(),
+        selectedOptions: selectedOptionsSchema,
       })
     )
     .max(100),
@@ -101,6 +123,7 @@ export type ShippingAddressInput = z.infer<typeof shippingAddressSchema>;
 
 export const createCheckoutOrderSchema = z.object({
   shippingAddress: shippingAddressSchema,
+  couponCode: z.string().trim().min(1).max(40).optional(),
 });
 export type CreateCheckoutOrderInput = z.infer<typeof createCheckoutOrderSchema>;
 
@@ -108,14 +131,38 @@ export const verifyPaymentSchema = z.object({
   razorpay_order_id: z.string().min(1),
   razorpay_payment_id: z.string().min(1),
   razorpay_signature: z.string().min(1),
+  couponCode: z.string().trim().min(1).max(40).optional(),
 });
 export type VerifyPaymentInput = z.infer<typeof verifyPaymentSchema>;
 
 /** Pay-on-delivery: no Razorpay round-trip, just place the order directly. */
 export const codOrderSchema = z.object({
   shippingAddress: shippingAddressSchema,
+  couponCode: z.string().trim().min(1).max(40).optional(),
 });
 export type CodOrderInput = z.infer<typeof codOrderSchema>;
+
+// --- Coupons ------------------------------------------------------------
+export const applyCouponSchema = z.object({
+  code: z.string().trim().min(1).max(40),
+  subtotal: z.number().nonnegative(),
+});
+export type ApplyCouponInput = z.infer<typeof applyCouponSchema>;
+
+const couponCodeRegex = /^[A-Za-z0-9]+$/;
+
+export const adminCouponSchema = z.object({
+  code: z.string().trim().min(3).max(40).regex(couponCodeRegex, 'Code may only contain letters and numbers'),
+  type: z.enum(['percent', 'flat']),
+  value: z.number().positive(),
+  minOrderValue: z.number().nonnegative().optional(),
+  maxDiscount: z.number().positive().optional(),
+  expiresAt: z.string().optional(),
+  usageLimit: z.number().int().positive().optional(),
+  active: z.boolean().default(true),
+  description: z.string().trim().max(200).optional(),
+});
+export type AdminCouponInput = z.infer<typeof adminCouponSchema>;
 
 export const cancelOrderSchema = z.object({
   reason: z.string().trim().max(300).optional(),
@@ -131,6 +178,19 @@ export const updateOrderStatusSchema = z.object({
 export type UpdateOrderStatusInput = z.infer<typeof updateOrderStatusSchema>;
 
 // --- Admin: product management ---------------------------------------------
+export const adminProductVariantSchema = z.object({
+  id: z.string().min(1),
+  sku: z.string().min(1),
+  options: z.record(z.string()),
+  inventory: z.object({
+    quantity: z.number().int().min(0),
+    reserved: z.number().int().min(0),
+    available: z.number().int().min(0),
+    lowStockThreshold: z.number().int().min(0),
+    status: z.enum(['in_stock', 'low_stock', 'out_of_stock']),
+  }),
+});
+
 export const adminProductSchema = z.object({
   name: z.string().trim().min(2).max(140),
   slug: z.string().trim().min(2).max(160).regex(/^[a-z0-9-]+$/, 'Use lowercase letters, numbers and hyphens only'),
@@ -139,6 +199,8 @@ export const adminProductSchema = z.object({
   originalPrice: z.number().positive().optional(),
   categoryId: z.string().min(1),
   categoryName: z.string().min(1),
+  subcategoryId: z.string().optional(),
+  subcategoryName: z.string().optional(),
   images: z.array(z.string().url()).min(1).max(8),
   stock: z.number().int().min(0),
   brand: z.string().trim().min(1).max(60),
@@ -147,6 +209,8 @@ export const adminProductSchema = z.object({
   isBestSeller: z.boolean().optional(),
   isSale: z.boolean().optional(),
   specs: z.record(z.string()).optional(),
+  attributes: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  variants: z.array(adminProductVariantSchema).optional(),
 });
 export type AdminProductInput = z.infer<typeof adminProductSchema>;
 

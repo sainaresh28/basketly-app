@@ -23,7 +23,7 @@ export default function FaqAccordion({ items }: { items: FaqItem[] }) {
             >
               <span className="font-semibold text-sm sm:text-base text-foreground">{item.question}</span>
               <span
-                className={`flex-shrink-0 w-7 h-7 rounded-full border border-border flex items-center justify-center transition-transform duration-300 ${isOpen ? 'rotate-45 bg-foreground border-foreground' : ''}`}
+                className={`flex-shrink-0 w-7 h-7 rounded-full border border-border flex items-center justify-center transition-transform duration-300 ${isOpen ? 'rotate-45 bg-dark-surface border-dark-surface' : ''}`}
               >
                 <svg className={`w-3.5 h-3.5 ${isOpen ? 'text-white' : 'text-foreground'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

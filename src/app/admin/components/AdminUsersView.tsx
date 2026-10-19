@@ -1,8 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import Pagination from './ui/Pagination';
-import { usePagination } from '@/hooks/usePagination';
 import type { User } from '@/types';
 
 interface AdminUserRow extends User {
@@ -33,9 +31,6 @@ export default function AdminUsersView() {
       return matchesQuery && matchesRole;
     });
   }, [users, search, roleFilter]);
-
-  const { page, setPage, totalPages, pageSize, paged, totalItems } = usePagination(visible);
-  useEffect(() => setPage(1), [search, roleFilter, setPage]);
 
   const handleDelete = async (user: AdminUserRow) => {
     if (!confirm(`Delete "${user.name}"? This removes their cart and wishlist data too. This can't be undone.`)) return;
@@ -96,7 +91,7 @@ export default function AdminUsersView() {
               </tr>
             </thead>
             <tbody>
-              {paged.map((u) => (
+              {visible.map((u) => (
                 <tr key={u.id} className="border-t border-border">
                   <td className="px-4 py-3 font-semibold text-foreground max-w-[200px] truncate">{u.name}</td>
                   <td className="px-4 py-3 text-muted-foreground max-w-[220px] truncate">{u.email}</td>
@@ -119,7 +114,6 @@ export default function AdminUsersView() {
               ))}
             </tbody>
           </table>
-          <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={setPage} />
         </div>
       )}
     </div>

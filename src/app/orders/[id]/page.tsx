@@ -13,7 +13,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   return (
     <>
       <Navbar />
-      <main className="pt-24 lg:pt-28 pb-20 min-h-screen px-4 sm:px-6 lg:px-10">
+      <main className="min-h-screen">
         <OrderDetailView orderId={id} />
       </main>
       <Footer />

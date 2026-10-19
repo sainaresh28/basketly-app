@@ -12,6 +12,7 @@ import PhilosophySection from './components/PhilosophySection';
 import NewsletterSection from './components/NewsletterSection';
 import { CategoryService } from '@/lib/services/category.service';
 import { ProductService } from '@/lib/services/product.service';
+import { safe } from '@/lib/safe';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,9 +23,9 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const [categories, trending, newArrivals] = await Promise.all([
-    CategoryService.listFeatured(),
-    ProductService.getTrending(),
-    ProductService.getNewArrivals(),
+    safe(CategoryService.listFeatured(), [], 'CategoryService.listFeatured'),
+    safe(ProductService.getTrending(), [], 'ProductService.getTrending'),
+    safe(ProductService.getNewArrivals(), [], 'ProductService.getNewArrivals'),
   ]);
 
   return (

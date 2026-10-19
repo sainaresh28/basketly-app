@@ -7,6 +7,7 @@ import ToastContainer from '@/components/layout/ToastContainer';
 import ProductsClientPage from './components/ProductsClientPage';
 import { ProductService } from '@/lib/services/product.service';
 import { CategoryService } from '@/lib/services/category.service';
+import { safe } from '@/lib/safe';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +18,9 @@ export const metadata: Metadata = {
 
 export default async function ProductsPage() {
   const [products, categories, facets] = await Promise.all([
-    ProductService.list(),
-    CategoryService.listAll(),
-    ProductService.getFacets(),
+    safe(ProductService.list(), [], 'ProductService.list'),
+    safe(CategoryService.listAll(), [], 'CategoryService.listAll'),
+    safe(ProductService.getFacets(), { brands: [], priceMin: 0, priceMax: 0 }, 'ProductService.getFacets'),
   ]);
 
   return (

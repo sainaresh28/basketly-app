@@ -3,16 +3,32 @@ import { ddb } from '@/lib/db/client';
 import { TABLES } from '@/lib/db/tables';
 
 /**
- * Each cart line item is its own DynamoDB item, keyed by (userId, productId).
- * This lets us add/update/remove a single line item as one fast, atomic
- * operation instead of reading, mutating and rewriting a large "cart blob".
+ * Two different variant picks of the same product must land in two
+ * different cart rows, not merge into one. The table's sort key is (and
+ * stays) the attribute named `productId` for schema-compatibility reasons,
+ * but its *value* is this composite line key when options are selected —
+ * the real catalog product id is kept separately in `catalogProductId`.
+ * With no options selected, the line key is just the plain product id, so
+ * single-SKU products behave exactly as before.
  */
+export function cartLineKey(productId: string, selectedOptions?: Record<string, string>): string {
+  const entries = Object.entries(selectedOptions || {}).filter(([, v]) => v);
+  if (entries.length === 0) return productId;
+  const suffix = entries
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join('|');
+  return `${productId}::${suffix}`;
+}
+
 export interface CartItemRecord {
   userId: string;
+  /** The DynamoDB sort key value — see cartLineKey() above. */
   productId: string;
+  /** The real catalog product this line refers to. Optional only for rows written before variant support — use `catalogProductId || productId` when reading. */
+  catalogProductId?: string;
   quantity: number;
-  selectedSize?: string;
-  selectedColor?: string;
+  selectedOptions?: Record<string, string>;
   addedAt: string;
   updatedAt: string;
 }
@@ -29,12 +45,12 @@ export const CartRepository = {
     return (res.Items as CartItemRecord[]) || [];
   },
 
-  async findItem(userId: string, productId: string): Promise<CartItemRecord | null> {
+  async findItem(userId: string, lineKey: string): Promise<CartItemRecord | null> {
     const res = await ddb.send(
       new QueryCommand({
         TableName: TABLES.CART,
-        KeyConditionExpression: 'userId = :userId AND productId = :productId',
-        ExpressionAttributeValues: { ':userId': userId, ':productId': productId },
+        KeyConditionExpression: 'userId = :userId AND productId = :lineKey',
+        ExpressionAttributeValues: { ':userId': userId, ':lineKey': lineKey },
         Limit: 1,
       })
     );
@@ -46,11 +62,11 @@ export const CartRepository = {
     return item;
   },
 
-  async updateQuantity(userId: string, productId: string, quantity: number): Promise<void> {
+  async updateQuantity(userId: string, lineKey: string, quantity: number): Promise<void> {
     await ddb.send(
       new UpdateCommand({
         TableName: TABLES.CART,
-        Key: { userId, productId },
+        Key: { userId, productId: lineKey },
         UpdateExpression: 'SET quantity = :quantity, updatedAt = :now',
         ConditionExpression: 'attribute_exists(userId)',
         ExpressionAttributeValues: { ':quantity': quantity, ':now': new Date().toISOString() },
@@ -58,8 +74,8 @@ export const CartRepository = {
     );
   },
 
-  async removeItem(userId: string, productId: string): Promise<void> {
-    await ddb.send(new DeleteCommand({ TableName: TABLES.CART, Key: { userId, productId } }));
+  async removeItem(userId: string, lineKey: string): Promise<void> {
+    await ddb.send(new DeleteCommand({ TableName: TABLES.CART, Key: { userId, productId: lineKey } }));
   },
 
   async clearForUser(userId: string): Promise<void> {

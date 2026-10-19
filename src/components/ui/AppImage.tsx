@@ -44,6 +44,16 @@ const AppImage = memo(function AppImage({
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
 
+    // `src` can change after mount (e.g. clicking a gallery thumbnail/arrow
+    // swaps which product image is shown). Without this, the state above —
+    // seeded once via useState(src) — never updates, so the component keeps
+    // rendering whatever image it first mounted with.
+    React.useEffect(() => {
+        setImageSrc(src);
+        setHasError(false);
+        setIsLoading(true);
+    }, [src]);
+
     const isExternalUrl = useMemo(() => typeof imageSrc === 'string' && imageSrc.startsWith('http'), [imageSrc]);
     const resolvedUnoptimized = unoptimized || isExternalUrl;
 
@@ -62,7 +72,7 @@ const AppImage = memo(function AppImage({
 
     const imageClassName = useMemo(() => {
         const classes = [className];
-        if (isLoading) classes.push('bg-gray-200');
+        if (isLoading) classes.push('bg-muted');
         if (onClick) classes.push('cursor-pointer hover:opacity-90 transition-opacity duration-200');
         return classes.filter(Boolean).join(' ');
     }, [className, isLoading, onClick]);

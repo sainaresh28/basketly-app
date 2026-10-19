@@ -2,11 +2,14 @@
 import React, { useState } from 'react';
 import { formatPrice } from '@/utils/format';
 import type { Product } from '@/types';
+import { getVariantOptions, resolveVariant, colorHex } from '@/lib/variants';
 
 interface ProductInformationProps {
   product: Product;
   quantity: number;
   setQuantity: (q: number) => void;
+  selectedOptions: Record<string, string>;
+  setOption: (key: string, value: string) => void;
   onAddToCart: () => void;
   onWishlist: () => void;
   wishlisted: boolean;
@@ -48,8 +51,15 @@ function AccordionItem({ title, children }: { title: string; children: React.Rea
 }
 
 export default function ProductInformation({
-  product, quantity, setQuantity, onAddToCart, onWishlist, wishlisted,
+  product, quantity, setQuantity, selectedOptions, setOption, onAddToCart, onWishlist, wishlisted,
 }: ProductInformationProps) {
+  const { dimensions } = getVariantOptions(product);
+  const hasVariants = Boolean(product.variants?.length);
+  const missingDimension = dimensions.find((d) => !selectedOptions[d.key]);
+  const variantIncomplete = hasVariants && !!missingDimension;
+  const resolvedVariant = resolveVariant(product, selectedOptions);
+  const effectiveStock = hasVariants ? (variantIncomplete ? undefined : resolvedVariant?.inventory.available ?? 0) : product.stock;
+
   return (
     <div className="flex flex-col">
       {/* Brand + Name */}
@@ -77,21 +87,69 @@ export default function ProductInformation({
       {/* Description */}
       <p className="text-sm text-muted-foreground leading-relaxed mb-6">{product.description}</p>
 
+      {/* Variant dimensions — color, size, connectivity, RAM, capacity, whatever this category varies by */}
+      {dimensions.map((dim) => (
+        <div key={dim.key} className="mb-6">
+          <p className="text-xs font-bold uppercase tracking-widest text-foreground mb-2.5">
+            {dim.label}
+            {selectedOptions[dim.key] ? <span className="text-muted-foreground font-medium normal-case tracking-normal"> — {selectedOptions[dim.key]}</span> : null}
+          </p>
+          {dim.isColor ? (
+            <div className="flex items-center gap-2.5">
+              {dim.values.map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setOption(dim.key, val)}
+                  aria-label={val}
+                  aria-pressed={selectedOptions[dim.key] === val}
+                  className={`h-9 w-9 rounded-full flex items-center justify-center transition-all ${
+                    selectedOptions[dim.key] === val ? 'ring-2 ring-offset-2 ring-foreground' : 'ring-1 ring-border hover:ring-foreground/50'
+                  }`}
+                >
+                  <span className="h-7 w-7 rounded-full border border-black/10" style={{ backgroundColor: colorHex(val) }} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {dim.values.map((val) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setOption(dim.key, val)}
+                  aria-pressed={selectedOptions[dim.key] === val}
+                  className={`min-w-[3rem] px-3.5 h-10 rounded-xl border text-sm font-bold transition-all ${
+                    selectedOptions[dim.key] === val
+                      ? 'border-dark-surface bg-dark-surface text-white'
+                      : 'border-border text-foreground hover:border-foreground'
+                  }`}
+                >
+                  {val}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+
       {/* Stock */}
       <div className="mb-6">
-        {product.stock === 0 ? (
+        {variantIncomplete ? (
+          <p className="text-sm font-semibold text-muted-foreground">Select {missingDimension!.label.toLowerCase()} to see availability.</p>
+        ) : effectiveStock === 0 ? (
           <div className="flex items-center gap-2 text-sm font-semibold text-red-500">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
             </svg>
             Out of Stock
           </div>
-        ) : product.stock <= 5 ? (
+        ) : (effectiveStock ?? 0) <= 5 ? (
           <div className="flex items-center gap-2 text-sm font-semibold text-primary">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
-            Only {product.stock} left in stock
+            Only {effectiveStock} left in stock
           </div>
         ) : (
           <div className="flex items-center gap-2 text-sm font-semibold text-green-600">
@@ -119,10 +177,10 @@ export default function ProductInformation({
           </button>
           <span className="w-12 text-center text-sm font-bold text-foreground">{quantity}</span>
           <button
-            onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+            onClick={() => setQuantity(Math.min(effectiveStock ?? product.stock, quantity + 1))}
             className="w-11 h-11 flex items-center justify-center hover:bg-muted transition-colors text-foreground"
             aria-label="Increase quantity"
-            disabled={quantity >= product.stock}
+            disabled={quantity >= (effectiveStock ?? product.stock)}
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -133,14 +191,16 @@ export default function ProductInformation({
         {/* Add to Cart */}
         <button
           onClick={onAddToCart}
-          disabled={product.stock === 0}
+          disabled={variantIncomplete || effectiveStock === 0}
           className={`flex-1 py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all ${
-            product.stock === 0
+            variantIncomplete || effectiveStock === 0
               ? 'bg-muted text-muted-foreground cursor-not-allowed'
-              : 'bg-primary text-white hover:bg-foreground hover:shadow-lg'
+              : 'bg-primary text-white hover:bg-dark-surface hover:shadow-lg'
           }`}
         >
-          {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+          {variantIncomplete
+            ? `Select ${missingDimension!.label}`
+            : effectiveStock === 0 ? 'Out of Stock' : 'Add to Cart'}
         </button>
 
         {/* Wishlist */}
@@ -182,16 +242,26 @@ export default function ProductInformation({
       {/* Accordion details */}
       <div className="border-t border-border">
         <AccordionItem title="Product Details">
-          {product.specs && (
-            <div className="space-y-2">
-              {Object.entries(product.specs).map(([key, val]) => (
-                <div key={key} className="flex justify-between">
-                  <span className="font-medium text-foreground/70">{key}</span>
-                  <span>{val}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="space-y-2">
+            {product.condition && (
+              <div className="flex justify-between">
+                <span className="font-medium text-foreground/70">Condition</span>
+                <span>{product.condition}</span>
+              </div>
+            )}
+            {product.warranty && (
+              <div className="flex justify-between">
+                <span className="font-medium text-foreground/70">Warranty</span>
+                <span>{product.warranty}</span>
+              </div>
+            )}
+            {product.specs && Object.entries(product.specs).map(([key, val]) => (
+              <div key={key} className="flex justify-between">
+                <span className="font-medium text-foreground/70">{key}</span>
+                <span>{val}</span>
+              </div>
+            ))}
+          </div>
         </AccordionItem>
         <AccordionItem title="Shipping & Delivery">
           <p>Free standard delivery on orders above ₹999. Express delivery available at ₹199. Estimated delivery: 3–5 business days for metros, 5–7 for other locations.</p>

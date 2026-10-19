@@ -3,15 +3,23 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { CartItem, Product, ToastMessage } from '@/types';
 
+/** Mirrors cartLineKey() server-side — a distinct line per unique combination of selected options. */
+function lineKeyFor(productId: string, selectedOptions?: Record<string, string>): string {
+  const entries = Object.entries(selectedOptions || {}).filter(([, v]) => v);
+  if (entries.length === 0) return productId;
+  const suffix = entries.sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join('|');
+  return `${productId}::${suffix}`;
+}
+
 interface CartStore {
   items: CartItem[];
   isDrawerOpen: boolean;
   toasts: ToastMessage[];
   isAuthenticated: boolean;
   setAuthenticated: (value: boolean) => void;
-  addItem: (product: Product, quantity?: number) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  addItem: (product: Product, quantity?: number, selectedOptions?: Record<string, string>) => void;
+  removeItem: (lineId: string) => void;
+  updateQuantity: (lineId: string, quantity: number) => void;
   clearCart: () => void;
   openDrawer: () => void;
   closeDrawer: () => void;
@@ -43,19 +51,20 @@ export const useCartStore = create<CartStore>()(
 
       setAuthenticated: (value) => set({ isAuthenticated: value }),
 
-      addItem: (product, quantity = 1) => {
-        const existing = get().items.find(i => i.productId === product.id);
+      addItem: (product, quantity = 1, selectedOptions) => {
+        const lineId = lineKeyFor(product.id, selectedOptions);
+        const existing = get().items.find(i => i.lineId === lineId);
         if (existing) {
           set(state => ({
             items: state.items.map(i =>
-              i.productId === product.id
+              i.lineId === lineId
                 ? { ...i, quantity: Math.min(i.quantity + quantity, product.stock) }
                 : i
             ),
           }));
         } else {
           set(state => ({
-            items: [...state.items, { productId: product.id, product, quantity: Math.min(quantity, product.stock) }],
+            items: [...state.items, { lineId, productId: product.id, product, quantity: Math.min(quantity, product.stock), selectedOptions }],
           }));
         }
         get().addToast(`${product.name} added to cart`, 'success');
@@ -73,7 +82,7 @@ export const useCartStore = create<CartStore>()(
         fetch('/api/cart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: product.id, quantity }),
+          body: JSON.stringify({ productId: product.id, quantity, selectedOptions }),
         })
           .then((res) => {
             if (!res.ok && res.status !== 401) {
@@ -87,11 +96,11 @@ export const useCartStore = create<CartStore>()(
           });
       },
 
-      removeItem: (productId) => {
-        set(state => ({ items: state.items.filter(i => i.productId !== productId) }));
+      removeItem: (lineId) => {
+        set(state => ({ items: state.items.filter(i => i.lineId !== lineId) }));
         get().addToast('Item removed from cart', 'info');
 
-        fetch(`/api/cart/${productId}`, { method: 'DELETE' })
+        fetch(`/api/cart/${encodeURIComponent(lineId)}`, { method: 'DELETE' })
           .then((res) => {
             if (!res.ok && res.status !== 401) {
               get().addToast('Could not sync your cart — check your connection', 'error');
@@ -104,20 +113,20 @@ export const useCartStore = create<CartStore>()(
           });
       },
 
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (lineId, quantity) => {
         if (quantity < 1) {
-          get().removeItem(productId);
+          get().removeItem(lineId);
           return;
         }
         set(state => ({
           items: state.items.map(i =>
-            i.productId === productId
+            i.lineId === lineId
               ? { ...i, quantity: Math.min(quantity, i.product.stock) }
               : i
           ),
         }));
 
-        fetch(`/api/cart/${productId}`, {
+        fetch(`/api/cart/${encodeURIComponent(lineId)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ quantity }),
@@ -174,8 +183,7 @@ export const useCartStore = create<CartStore>()(
               items: localItems.map(i => ({
                 productId: i.productId,
                 quantity: i.quantity,
-                selectedSize: i.selectedSize,
-                selectedColor: i.selectedColor,
+                selectedOptions: i.selectedOptions,
               })),
             }),
           });

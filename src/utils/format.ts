@@ -1,3 +1,17 @@
+/** Turns { ram: '16GB', color: 'Black' } into "RAM: 16GB · Color: Black" for cart/order/invoice display. */
+export function formatSelectedOptions(options?: Record<string, string>): string {
+  if (!options) return '';
+  return Object.entries(options)
+    .filter(([, v]) => v)
+    .map(([key, value]) => {
+      const label = key.length <= 3
+        ? key.toUpperCase() // RAM, OS, etc.
+        : key.replace(/([A-Z])/g, ' $1').replace(/^./, (c) => c.toUpperCase());
+      return `${label}: ${value}`;
+    })
+    .join(' · ');
+}
+
 export function formatPrice(price: number): string {
   return `₹${price.toLocaleString('en-IN')}`;
 }

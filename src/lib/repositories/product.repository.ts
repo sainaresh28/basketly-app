@@ -1,16 +1,7 @@
 import { GetCommand, PutCommand, QueryCommand, ScanCommand, BatchGetCommand } from '@aws-sdk/lib-dynamodb';
 import { ddb } from '@/lib/db/client';
 import { TABLES, INDEXES } from '@/lib/db/tables';
-import { cached, invalidateCache } from '@/lib/cache/memory-cache';
 import type { Product } from '@/types';
-
-const ALL_PRODUCTS_KEY = 'products:all';
-// The whole catalog is scanned on nearly every page (home, products,
-// new-arrivals, sale, product detail's related products, cart, checkout,
-// admin). A short cache turns "every page load re-scans the table" into
-// "at most one Scan every 20s", which is the single biggest real (not just
-// perceived) latency win available without moving to a search index.
-const PRODUCTS_TTL_MS = 20_000;
 
 export const ProductRepository = {
   /**
@@ -20,18 +11,16 @@ export const ProductRepository = {
    * with DynamoDB remaining the source of truth for a single product's data.
    */
   async findAll(): Promise<Product[]> {
-    return cached(ALL_PRODUCTS_KEY, PRODUCTS_TTL_MS, async () => {
-      const items: Product[] = [];
-      let ExclusiveStartKey: Record<string, unknown> | undefined;
-      do {
-        const res = await ddb.send(
-          new ScanCommand({ TableName: TABLES.PRODUCTS, ExclusiveStartKey })
-        );
-        items.push(...((res.Items as Product[]) || []));
-        ExclusiveStartKey = res.LastEvaluatedKey;
-      } while (ExclusiveStartKey);
-      return items;
-    });
+    const items: Product[] = [];
+    let ExclusiveStartKey: Record<string, unknown> | undefined;
+    do {
+      const res = await ddb.send(
+        new ScanCommand({ TableName: TABLES.PRODUCTS, ExclusiveStartKey })
+      );
+      items.push(...((res.Items as Product[]) || []));
+      ExclusiveStartKey = res.LastEvaluatedKey;
+    } while (ExclusiveStartKey);
+    return items;
   },
 
   async findById(id: string): Promise<Product | null> {
@@ -87,7 +76,6 @@ export const ProductRepository = {
 
   async put(product: Product): Promise<Product> {
     await ddb.send(new PutCommand({ TableName: TABLES.PRODUCTS, Item: product }));
-    invalidateCache(ALL_PRODUCTS_KEY);
     return product;
   },
 
@@ -112,14 +100,12 @@ export const ProductRepository = {
         ReturnValues: 'ALL_NEW',
       })
     );
-    invalidateCache(ALL_PRODUCTS_KEY);
     return res.Attributes as Product;
   },
 
   async delete(id: string): Promise<void> {
     const { DeleteCommand } = await import('@aws-sdk/lib-dynamodb');
     await ddb.send(new DeleteCommand({ TableName: TABLES.PRODUCTS, Key: { id } }));
-    invalidateCache(ALL_PRODUCTS_KEY);
   },
 
   /** Atomically decrement stock; throws (condition fails) if not enough stock. */
@@ -134,6 +120,5 @@ export const ProductRepository = {
         ExpressionAttributeValues: { ':amount': amount },
       })
     );
-    invalidateCache(ALL_PRODUCTS_KEY);
   },
 };

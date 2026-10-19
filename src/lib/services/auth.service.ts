@@ -12,11 +12,20 @@ import type {
   AddressUpdateInput,
 } from '@/lib/validation/schemas';
 import type { Address, User } from '@/types';
+import { DEFAULT_USER_PREFERENCES } from '@/types';
 
 function toPublicUser(record: UserRecord): User {
   // Never leak the password hash to the client.
   const { passwordHash: _passwordHash, ...publicUser } = record;
   return publicUser;
+}
+
+function mergePreferences(stored?: User['preferences']): NonNullable<User['preferences']> {
+  return {
+    theme: stored?.theme ?? DEFAULT_USER_PREFERENCES.theme,
+    personalizedRecommendations: stored?.personalizedRecommendations ?? DEFAULT_USER_PREFERENCES.personalizedRecommendations,
+    notifications: { ...DEFAULT_USER_PREFERENCES.notifications, ...stored?.notifications },
+  };
 }
 
 export const AuthService = {
@@ -98,16 +107,26 @@ export const AuthService = {
 
   async getProfile(userId: string): Promise<User | null> {
     const record = await UserRepository.findById(userId);
-    return record ? toPublicUser(record) : null;
+    if (!record) return null;
+    const user = toPublicUser(record);
+    return { ...user, preferences: mergePreferences(user.preferences) };
   },
 
   async updateProfile(userId: string, input: UpdateProfileInput): Promise<User> {
     const record = await UserRepository.findById(userId);
     if (!record) throw new NotFoundError('Account not found');
 
-    const patch: Partial<Pick<User, 'name' | 'phone'>> = {};
+    const patch: Partial<Pick<User, 'name' | 'phone' | 'preferences'>> = {};
     if (input.name !== undefined) patch.name = input.name;
     if (input.phone !== undefined) patch.phone = input.phone || undefined;
+    if (input.preferences !== undefined) {
+      const current = mergePreferences(record.preferences);
+      patch.preferences = {
+        theme: input.preferences.theme ?? current.theme,
+        personalizedRecommendations: input.preferences.personalizedRecommendations ?? current.personalizedRecommendations,
+        notifications: { ...current.notifications, ...input.preferences.notifications },
+      };
+    }
 
     await UserRepository.update(userId, patch);
     return { ...toPublicUser(record), ...patch };

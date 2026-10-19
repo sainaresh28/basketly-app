@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppIcon from '@/components/ui/AppIcon';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatSelectedOptions } from '@/utils/format';
 import type { Order } from '@/types';
 
 const SLIDE_UP_MS = 450;
@@ -59,7 +59,7 @@ export default function PrinterInvoiceModal({ order, onClose }: { order: Order; 
           <button
             onClick={onClose}
             aria-label="Close"
-            className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-foreground hover:bg-white">
+            className="mb-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-900 hover:bg-white">
             <AppIcon name="XMarkIcon" size={16} />
           </button>
         </div>
@@ -99,7 +99,12 @@ export default function PrinterInvoiceModal({ order, onClose }: { order: Order; 
               <div className="mt-4 space-y-1.5 text-xs">
                 {order.items.map((item) => (
                   <div key={item.productId} className="flex justify-between gap-3">
-                    <span className="truncate">{item.name} x{item.quantity}</span>
+                    <span className="truncate">
+                      {item.name} x{item.quantity}
+                      {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                        <span className="block text-[10px] text-neutral-400 truncate">{formatSelectedOptions(item.selectedOptions)}</span>
+                      )}
+                    </span>
                     <span className="shrink-0">{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
@@ -111,6 +116,12 @@ export default function PrinterInvoiceModal({ order, onClose }: { order: Order; 
                   <span>Subtotal</span>
                   <span>{formatPrice(order.subtotal)}</span>
                 </div>
+                {!!order.discount && (
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                    <span>-{formatPrice(order.discount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-neutral-500">
                   <span>Delivery</span>
                   <span>{order.shipping ? formatPrice(order.shipping) : 'Free'}</span>

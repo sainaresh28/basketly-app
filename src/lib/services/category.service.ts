@@ -31,7 +31,7 @@ export const CategoryService = {
     const existing = await CategoryRepository.findBySlug(input.slug);
     if (existing) throw new ConflictError('A category with that slug already exists');
 
-    const category: Category = { id: uuidv4(), productCount: 0, ...input };
+    const category: Category = { id: uuidv4(), productCount: 0, level: 0, ...input };
     return CategoryRepository.put(category);
   },
 

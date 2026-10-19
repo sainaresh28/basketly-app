@@ -10,6 +10,9 @@ export const TABLES = {
   CART: process.env.DYNAMODB_CART_TABLE || 'basketly-cart',
   WISHLIST: process.env.DYNAMODB_WISHLIST_TABLE || 'basketly-wishlist',
   ORDERS: process.env.DYNAMODB_ORDERS_TABLE || 'basketly-orders',
+  REVIEWS: process.env.DYNAMODB_REVIEWS_TABLE || 'basketly-reviews',
+  BRANDS: process.env.DYNAMODB_BRANDS_TABLE || 'basketly-brands',
+  COUPONS: process.env.DYNAMODB_COUPONS_TABLE || 'basketly-coupons',
 } as const;
 
 export const INDEXES = {
@@ -18,4 +21,6 @@ export const INDEXES = {
   PRODUCTS_BY_CATEGORY: 'CategoryIndex',
   CATEGORIES_BY_SLUG: 'SlugIndex',
   ORDERS_BY_USER: 'UserIndex',
+  REVIEWS_BY_PRODUCT: 'ProductIndex',
+  BRANDS_BY_SLUG: 'SlugIndex',
 } as const;

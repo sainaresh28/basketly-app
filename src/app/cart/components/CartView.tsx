@@ -4,7 +4,7 @@ import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import AppIcon from '@/components/ui/AppIcon';
 import { useCartStore } from '@/lib/cart-store';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatSelectedOptions } from '@/utils/format';
 import type { CartItem } from '@/types';
 
 const FREE_SHIPPING_THRESHOLD = 1999;
@@ -31,23 +31,26 @@ function CartLineRow({ item }: { item: CartItem }) {
           </Link>
           <button
             aria-label={`Remove ${item.product.name}`}
-            onClick={() => removeItem(item.productId)}
+            onClick={() => removeItem(item.lineId)}
             className="text-muted-foreground hover:text-primary transition-colors shrink-0">
             <AppIcon name="TrashIcon" size={16} />
           </button>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{formatPrice(item.product.price)}</p>
+        {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+          <p className="mt-1.5 text-xs font-semibold text-foreground">{formatSelectedOptions(item.selectedOptions)}</p>
+        )}
         <div className="mt-3 flex items-center border border-border rounded-full w-fit overflow-hidden">
           <button
             aria-label="Decrease quantity"
-            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+            onClick={() => updateQuantity(item.lineId, item.quantity - 1)}
             className="px-3 py-1.5 hover:bg-muted transition-colors">
             <AppIcon name="MinusIcon" size={12} />
           </button>
           <span className="w-8 text-center text-xs font-semibold">{item.quantity}</span>
           <button
             aria-label="Increase quantity"
-            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+            onClick={() => updateQuantity(item.lineId, item.quantity + 1)}
             className="px-3 py-1.5 hover:bg-muted transition-colors">
             <AppIcon name="PlusIcon" size={12} />
           </button>
@@ -75,7 +78,7 @@ export default function CartView() {
           <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_360px]">
             <div>
               {items.map((item) => (
-                <CartLineRow key={item.productId} item={item} />
+                <CartLineRow key={item.lineId} item={item} />
               ))}
             </div>
             <aside className="h-fit rounded-3xl border border-border p-6">

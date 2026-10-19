@@ -24,11 +24,11 @@ const SHOP_ALL_SLIDES: HeroSlide[] = [
 ];
 
 const HERO_CATEGORIES = [
-  { slug: 'fashion', label: 'Clothing', image: '/reference/hero/clothing.png' },
-  { slug: 'lifestyle', label: 'Footwear', image: '/reference/hero/footwear-category.png' },
-  { slug: 'lifestyle', label: 'Electronics', image: '/reference/hero/electronics.png' },
-  { slug: 'lifestyle', label: 'Bags', image: '/reference/hero/bags.png' },
-  { slug: 'home', label: 'Home & Living', image: '/reference/hero/home-living.png' },
+  { image: '/reference/hero/clothing.png' },
+  { image: '/reference/hero/footwear-category.png' },
+  { image: '/reference/hero/electronics.png' },
+  { image: '/reference/hero/bags.png' },
+  { image: '/reference/hero/home-living.png' },
 ];
 
 function ChevronLeftIcon() {
@@ -101,7 +101,7 @@ function HeroVisualTile({
     <Link
       href={href}
       aria-label={`${label} collection`}
-      className={`bento-card group relative block w-full bg-foreground ${className}`}>
+      className={`bento-card group relative block w-full bg-dark-surface ${className}`}>
       <div key={`${label}-${active}`} className={`absolute inset-0 ${animationClass}`}>
         <div className="absolute inset-0 lg:hidden">
           <AppImage
@@ -291,7 +291,7 @@ export default function Hero({ categories }: HeroProps) {
           {(categories.length ? categories.slice(0, 5) : []).map((cat, i) => {
             const fallback = HERO_CATEGORIES[i];
             const image = fallback?.image || cat.image;
-            const label = fallback?.label || cat.name;
+            const label = cat.name;
             return (
               <Link
                 key={cat.id}

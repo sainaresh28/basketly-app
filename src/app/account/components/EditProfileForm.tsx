@@ -34,23 +34,35 @@ export default function EditProfileForm({ user }: { user: User }) {
 
   if (!editing) {
     return (
-      <div className="rounded-2xl border border-border p-5">
+      <div className="rounded-2xl border border-border p-6">
         <div className="flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Profile</span>
-          <button onClick={() => setEditing(true)} className="text-xs font-bold text-foreground border-b-2 border-foreground pb-0.5 hover:text-primary hover:border-primary transition-colors">
+          <h3 className="text-base font-bold text-foreground">Profile Information</h3>
+          <button onClick={() => setEditing(true)} className="text-xs font-bold uppercase tracking-wide text-foreground border-b-2 border-foreground pb-0.5 hover:text-primary hover:border-primary transition-colors">
             Edit
           </button>
         </div>
-        <p className="mt-4 text-sm text-foreground font-semibold">{user.name}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{user.email}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{user.phone || 'No phone number on file'}</p>
+        <div className="mt-5 flex items-center gap-4">
+          <div className="h-14 w-14 shrink-0 rounded-full bg-secondary/40 flex items-center justify-center text-lg font-bold text-foreground overflow-hidden">
+            {user.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+            ) : (
+              user.name.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-foreground">{user.name}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{user.email}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">{user.phone || 'No phone number on file'}</p>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-border p-5">
-      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Edit Profile</span>
+    <form onSubmit={submit} className="rounded-2xl border border-border p-6">
+      <h3 className="text-base font-bold text-foreground">Edit Profile</h3>
       <div className="mt-4 space-y-3">
         <label className="block text-sm font-semibold text-foreground">
           Name

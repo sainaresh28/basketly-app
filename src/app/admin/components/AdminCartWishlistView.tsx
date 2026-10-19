@@ -1,8 +1,6 @@
 'use client';
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatPrice } from '@/utils/format';
-import Pagination from './ui/Pagination';
-import { usePagination } from '@/hooks/usePagination';
 
 interface CartRow {
   userId: string;
@@ -57,14 +55,6 @@ export default function AdminCartWishlistView() {
     );
   }, [wishlistRows, search]);
 
-  const cartPagination = usePagination(filteredCart);
-  const wishlistPagination = usePagination(filteredWishlist);
-  useEffect(() => {
-    cartPagination.setPage(1);
-    wishlistPagination.setPage(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, tab]);
-
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -108,7 +98,7 @@ export default function AdminCartWishlistView() {
                 </tr>
               </thead>
               <tbody>
-                {cartPagination.paged.map((r) => (
+                {filteredCart.map((r) => (
                   <tr key={`${r.userId}-${r.productId}`} className="border-t border-border">
                     <td className="px-4 py-3">
                       <div className="font-semibold text-foreground">{r.userName}</div>
@@ -122,13 +112,6 @@ export default function AdminCartWishlistView() {
                 ))}
               </tbody>
             </table>
-            <Pagination
-              page={cartPagination.page}
-              totalPages={cartPagination.totalPages}
-              totalItems={cartPagination.totalItems}
-              pageSize={cartPagination.pageSize}
-              onPageChange={cartPagination.setPage}
-            />
           </div>
         )
       ) : !wishlistRows ? (
@@ -147,7 +130,7 @@ export default function AdminCartWishlistView() {
               </tr>
             </thead>
             <tbody>
-              {wishlistPagination.paged.map((r) => (
+              {filteredWishlist.map((r) => (
                 <tr key={`${r.userId}-${r.productId}`} className="border-t border-border">
                   <td className="px-4 py-3">
                     <div className="font-semibold text-foreground">{r.userName}</div>
@@ -160,13 +143,6 @@ export default function AdminCartWishlistView() {
               ))}
             </tbody>
           </table>
-          <Pagination
-            page={wishlistPagination.page}
-            totalPages={wishlistPagination.totalPages}
-            totalItems={wishlistPagination.totalItems}
-            pageSize={wishlistPagination.pageSize}
-            onPageChange={wishlistPagination.setPage}
-          />
         </div>
       )}
     </div>

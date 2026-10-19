@@ -55,6 +55,7 @@ export const GET = withErrorHandling(async () => {
   const ordersTrendPercent = pctChange(last7.length, prev7.length);
 
   const categoryDistribution = categories
+    .filter((c) => c.level === 0)
     .map((c) => ({ id: c.id, name: c.name, productCount: c.productCount }))
     .sort((a, b) => b.productCount - a.productCount);
 
@@ -62,7 +63,7 @@ export const GET = withErrorHandling(async () => {
     totalOrders: orders.length,
     totalRevenue,
     totalProducts: products.length,
-    totalCategories: categories.length,
+    totalCategories: categories.filter((c) => c.level === 0).length,
     totalUsers: users.length,
     cartItemCount: cartItems.length,
     wishlistItemCount: wishlistItems.length,

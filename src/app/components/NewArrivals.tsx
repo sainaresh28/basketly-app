@@ -20,25 +20,29 @@ function NewArrivalCard({ product }: { product: Product }) {
   return (
     <div className="flex-shrink-0 w-56 sm:w-64 group">
       <div className="relative rounded-2xl overflow-hidden bg-muted aspect-[3/4] mb-3">
-        <AppImage
-          src={product.images[0]}
-          alt={`${product.name} — new arrival product`}
-          fill
-          sizes="256px"
-          className="object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute top-3 left-3">
+        <Link href={`/product-detail?id=${product.id}`} className="absolute inset-0 z-0 block" aria-label={product.name}>
+          <AppImage
+            src={product.images[0]}
+            alt={`${product.name} — new arrival product`}
+            fill
+            sizes="256px"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        </Link>
+        <div className="absolute top-3 left-3 pointer-events-none">
           <span className="badge-new">New</span>
         </div>
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const added = toggleItem(product);
             addToast(added ? `${product.name} added to wishlist` : 'Removed from wishlist', added ? 'success' : 'info');
           }}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
           aria-label="Wishlist"
         >
-          <svg className={`w-4 h-4 ${wishlisted ? 'fill-primary stroke-primary' : 'fill-transparent stroke-foreground'}`} strokeWidth={1.75} viewBox="0 0 24 24">
+          <svg className={`w-4 h-4 ${wishlisted ? 'fill-primary stroke-primary' : 'fill-transparent stroke-neutral-900'}`} strokeWidth={1.75} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
@@ -80,7 +84,7 @@ export default function NewArrivals({ products }: NewArrivalsProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={() => scroll('left')}
-              className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-foreground hover:text-white hover:border-foreground transition-all"
+              className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-dark-surface hover:text-white hover:border-dark-surface transition-all"
               aria-label="Scroll left"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,7 +93,7 @@ export default function NewArrivals({ products }: NewArrivalsProps) {
             </button>
             <button
               onClick={() => scroll('right')}
-              className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-foreground hover:text-white hover:border-foreground transition-all"
+              className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-dark-surface hover:text-white hover:border-dark-surface transition-all"
               aria-label="Scroll right"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

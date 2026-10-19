@@ -46,6 +46,7 @@ module.exports = {
         sans: ['var(--font-sans)', 'sans-serif'],
         display: ['var(--font-display)', 'sans-serif'],
         brand: ['var(--font-brand)', 'sans-serif'],
+        script: ['var(--font-script)', 'cursive'],
       },
       borderRadius: {
         DEFAULT: 'var(--radius)',

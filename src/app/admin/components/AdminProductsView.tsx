@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { formatPrice } from '@/utils/format';
 import { SearchIcon } from './ui/icons';
-import Pagination from './ui/Pagination';
-import { usePagination } from '@/hooks/usePagination';
 import type { Product } from '@/types';
 
 export default function AdminProductsView() {
@@ -27,9 +25,6 @@ export default function AdminProductsView() {
       (p) => p.name.toLowerCase().includes(term) || p.categoryName.toLowerCase().includes(term) || p.brand?.toLowerCase().includes(term)
     );
   }, [products, query]);
-
-  const { page, setPage, totalPages, pageSize, paged, totalItems } = usePagination(filtered ?? []);
-  useEffect(() => setPage(1), [query, setPage]);
 
   const handleStockChange = async (product: Product, stock: number) => {
     setBusyId(product.id);
@@ -85,7 +80,7 @@ export default function AdminProductsView() {
               </tr>
             </thead>
             <tbody>
-              {paged.map((p) => (
+              {filtered.map((p) => (
                 <tr key={p.id} className="border-t border-border">
                   <td className="px-4 py-3 font-semibold text-foreground max-w-[240px] truncate">{p.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{p.categoryName}</td>
@@ -111,7 +106,6 @@ export default function AdminProductsView() {
               ))}
             </tbody>
           </table>
-          <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageSize={pageSize} onPageChange={setPage} />
         </div>
       )}
     </div>

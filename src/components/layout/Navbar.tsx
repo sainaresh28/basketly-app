@@ -174,7 +174,7 @@ export default function Navbar() {
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
           />
           <div className="absolute top-0 left-0 right-0 bg-background pt-[5.5rem] pb-8 px-6 shadow-2xl animate-fade-in">
@@ -212,7 +212,7 @@ export default function Navbar() {
       {searchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4">
           <div
-            className="absolute inset-0 bg-foreground/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/55 backdrop-blur-sm"
             onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
           />
           <div className="relative w-full max-w-2xl bg-background rounded-2xl shadow-2xl overflow-hidden animate-fade-up">

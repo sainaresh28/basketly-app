@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatSelectedOptions } from '@/utils/format';
 import { BRAND } from '@/lib/brand';
 import type { Order } from '@/types';
 
@@ -99,7 +99,12 @@ export default function InvoiceView({ orderId }: { orderId: string }) {
           <tbody>
             {order.items.map((item) => (
               <tr key={item.productId} className="border-b border-neutral-200">
-                <td className="py-3 pr-4">{item.name}</td>
+                <td className="py-3 pr-4">
+                  {item.name}
+                  {item.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                    <div className="mt-0.5 text-[11px] text-neutral-500">{formatSelectedOptions(item.selectedOptions)}</div>
+                  )}
+                </td>
                 <td className="py-3 text-center">{item.quantity}</td>
                 <td className="py-3 text-right">{formatPrice(item.price)}</td>
                 <td className="py-3 text-right font-semibold">{formatPrice(item.price * item.quantity)}</td>
@@ -110,6 +115,9 @@ export default function InvoiceView({ orderId }: { orderId: string }) {
 
         <div className="mt-6 ml-auto max-w-xs space-y-2 text-sm">
           <div className="flex justify-between"><span className="text-neutral-500">Subtotal</span><span>{formatPrice(order.subtotal)}</span></div>
+          {!!order.discount && (
+            <div className="flex justify-between"><span className="text-neutral-500">Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span><span>-{formatPrice(order.discount)}</span></div>
+          )}
           <div className="flex justify-between"><span className="text-neutral-500">Delivery</span><span>{order.shipping ? formatPrice(order.shipping) : 'Free'}</span></div>
           <div className="flex justify-between text-[11px] text-neutral-400"><span>Incl. GST (approx.)</span><span>{formatPrice(gst)}</span></div>
           <div className="flex justify-between border-t border-neutral-900 pt-2 text-base font-bold"><span>Total</span><span>{formatPrice(order.total)}</span></div>

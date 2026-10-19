@@ -38,16 +38,18 @@ function TrendingProductCard({ product }: { product: Product }) {
   return (
     <div className="group relative flex flex-col">
       <div className="product-image-wrap rounded-2xl bg-muted aspect-[3/4] mb-3 relative">
-        <AppImage
-          src={product.images[0]}
-          alt={`${product.name} by ${product.brand} — ${product.categoryName}`}
-          fill
-          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          className="object-cover w-full h-full rounded-2xl"
-        />
+        <Link href={`/product-detail?id=${product.id}`} className="absolute inset-0 z-0 block" aria-label={product.name}>
+          <AppImage
+            src={product.images[0]}
+            alt={`${product.name} by ${product.brand} — ${product.categoryName}`}
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className="object-cover w-full h-full rounded-2xl"
+          />
+        </Link>
 
         {/* Badges */}
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 pointer-events-none">
           {product.isNew && <span className="badge-new">New</span>}
           {product.isBestSeller && <span className="badge-sale">Best Seller</span>}
           {product.discountPercent && <span className="badge-sale">{product.discountPercent}% Off</span>}
@@ -55,11 +57,11 @@ function TrendingProductCard({ product }: { product: Product }) {
 
         {/* Wishlist */}
         <button
-          onClick={handleWishlist}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleWishlist(e); }}
+          className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:scale-110"
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >
-          <svg className={`w-4 h-4 ${wishlisted ? 'fill-primary stroke-primary' : 'fill-transparent stroke-foreground'}`} strokeWidth={1.75} viewBox="0 0 24 24">
+          <svg className={`w-4 h-4 ${wishlisted ? 'fill-primary stroke-primary' : 'fill-transparent stroke-neutral-900'}`} strokeWidth={1.75} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                 </svg>
         </button>
@@ -67,15 +69,15 @@ function TrendingProductCard({ product }: { product: Product }) {
         {/* Quick Add */}
         {product.stock > 0 && (
           <button
-            onClick={(e) => { e.preventDefault(); addItem(product, 1); }}
-            className="absolute bottom-3 left-3 right-3 py-2.5 bg-foreground text-white text-xs font-bold uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-primary"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); addItem(product, 1); }}
+            className="absolute bottom-3 left-3 right-3 z-10 py-2.5 bg-dark-surface text-white text-xs font-bold uppercase tracking-widest rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 hover:bg-primary"
           >
             Quick Add
           </button>
         )}
 
         {product.stock === 0 && (
-          <div className="absolute inset-0 bg-background/60 flex items-center justify-center rounded-2xl">
+          <div className="absolute inset-0 z-10 bg-background/60 flex items-center justify-center rounded-2xl pointer-events-none">
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground bg-background px-3 py-1.5 rounded-full border border-border">Out of Stock</span>
           </div>
         )}

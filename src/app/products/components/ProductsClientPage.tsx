@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import type { Product, Category, FilterState, SortOption } from '@/types';
+import { getCategoryFilters } from '@/lib/catalog/taxonomy';
 import ProductsHeader from './ProductsHeader';
 import ProductFilters from './ProductFilters';
 import ProductGrid from './ProductGrid';
@@ -27,7 +28,7 @@ export default function ProductsClientPage({
 
   const initialCategoryId = useMemo(() => {
     if (!categorySlug) return null;
-    return categories.find(c => c.slug === categorySlug)?.id ?? null;
+    return categories.find(c => c.slug === categorySlug || c.id === categorySlug)?.id ?? null;
   }, [categorySlug, categories]);
 
   const [filters, setFilters] = useState<FilterState>({
@@ -38,7 +39,14 @@ export default function ProductsClientPage({
     rating: null,
     availability: 'all',
     sort: 'featured',
+    attributes: {},
   });
+
+  const topCategories = useMemo(() => categories.filter((c) => c.level === 0), [categories]);
+  const attributeFilterDefs = useMemo(
+    () => (filters.categories.length === 1 ? getCategoryFilters(filters.categories[0]) : []),
+    [filters.categories]
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
 
@@ -74,6 +82,17 @@ export default function ProductsClientPage({
     } else if (filters.availability === 'outOfStock') {
       result = result.filter(p => p.stock === 0);
     }
+    for (const [key, values] of Object.entries(filters.attributes)) {
+      if (values.length === 0) continue;
+      const attrType = attributeFilterDefs.find((d) => d.key === key)?.type;
+      result = result.filter((p) => {
+        const productValue = p.attributes?.[key];
+        if (productValue === undefined) return false;
+        if (attrType === 'number') return Number(productValue) >= Number(values[0]);
+        if (attrType === 'text') return String(productValue).toLowerCase().includes(values[0].toLowerCase());
+        return values.includes(String(productValue));
+      });
+    }
 
     switch (filters.sort) {
       case 'newest': result.sort((a, b) => (b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)); break;
@@ -85,25 +104,42 @@ export default function ProductsClientPage({
     }
 
     return result;
-  }, [initialProducts, filters]);
+  }, [initialProducts, filters, attributeFilterDefs]);
 
   const visibleProducts = filteredProducts.slice(0, visibleCount);
   const hasMore = visibleCount < filteredProducts.length;
 
   const updateFilter = useCallback(<K extends keyof FilterState>(key: K, value: FilterState[K]) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
+    setFilters(prev => ({ ...prev, [key]: value, ...(key === 'categories' ? { attributes: {} } : {}) }));
+    setVisibleCount(12);
+  }, []);
+
+  const toggleAttributeValue = useCallback((attrKey: string, value: string, exclusive?: boolean) => {
+    setFilters((prev) => {
+      const current = prev.attributes[attrKey] || [];
+      const next = exclusive
+        ? (current.includes(value) ? [] : [value])
+        : current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+      return { ...prev, attributes: { ...prev.attributes, [attrKey]: next } };
+    });
+    setVisibleCount(12);
+  }, []);
+
+  const setAttributeValue = useCallback((attrKey: string, value: string) => {
+    setFilters((prev) => ({ ...prev, attributes: { ...prev.attributes, [attrKey]: [value] } }));
     setVisibleCount(12);
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({ categories: [], priceMin, priceMax, brands: [], rating: null, availability: 'all', sort: filters.sort });
+    setFilters({ categories: [], priceMin, priceMax, brands: [], rating: null, availability: 'all', sort: filters.sort, attributes: {} });
     setVisibleCount(12);
   }, [priceMin, priceMax, filters.sort]);
 
   const activeFilterCount = filters.categories.length + filters.brands.length +
     (filters.rating !== null ? 1 : 0) +
     (filters.availability !== 'all' ? 1 : 0) +
-    (filters.priceMin > priceMin || filters.priceMax < priceMax ? 1 : 0);
+    (filters.priceMin > priceMin || filters.priceMax < priceMax ? 1 : 0) +
+    Object.values(filters.attributes).reduce((sum, v) => sum + v.length, 0);
 
   return (
     <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-10 pb-20">
@@ -117,7 +153,7 @@ export default function ProductsClientPage({
         {/* Sidebar filters — desktop */}
         <aside className="hidden lg:block w-64 flex-shrink-0">
           <ProductFilters
-            categories={categories}
+            categories={topCategories}
             brands={brands}
             priceMin={priceMin}
             priceMax={priceMax}
@@ -125,6 +161,9 @@ export default function ProductsClientPage({
             onUpdateFilter={updateFilter}
             onClear={clearFilters}
             activeCount={activeFilterCount}
+            attributeFilters={attributeFilterDefs}
+            onToggleAttribute={toggleAttributeValue}
+            onSetAttributeValue={setAttributeValue}
           />
         </aside>
 
@@ -209,7 +248,7 @@ export default function ProductsClientPage({
       {/* Mobile filter drawer */}
       {filtersOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={() => setFiltersOpen(false)} />
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setFiltersOpen(false)} />
           <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-background shadow-2xl flex flex-col slide-in-right">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <h2 className="font-display font-bold text-lg uppercase">Filters</h2>
@@ -221,7 +260,7 @@ export default function ProductsClientPage({
             </div>
             <div className="flex-1 overflow-y-auto p-5">
               <ProductFilters
-                categories={categories}
+                categories={topCategories}
                 brands={brands}
                 priceMin={priceMin}
                 priceMax={priceMax}
@@ -229,6 +268,9 @@ export default function ProductsClientPage({
                 onUpdateFilter={updateFilter}
                 onClear={clearFilters}
                 activeCount={activeFilterCount}
+                attributeFilters={attributeFilterDefs}
+                onToggleAttribute={toggleAttributeValue}
+            onSetAttributeValue={setAttributeValue}
               />
             </div>
             <div className="p-5 border-t border-border">

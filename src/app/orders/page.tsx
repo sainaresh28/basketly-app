@@ -12,7 +12,7 @@ export default function OrdersPage() {
   return (
     <>
       <Navbar />
-      <main className="pt-24 lg:pt-28 pb-20 min-h-screen px-4 sm:px-6 lg:px-10">
+      <main className="min-h-screen">
         <OrdersListView />
       </main>
       <Footer />

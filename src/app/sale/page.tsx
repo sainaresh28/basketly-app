@@ -8,6 +8,7 @@ import ToastContainer from '@/components/layout/ToastContainer';
 import AppImage from '@/components/ui/AppImage';
 import ProductGrid from '@/app/products/components/ProductGrid';
 import { ProductService } from '@/lib/services/product.service';
+import { safe } from '@/lib/safe';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function SalePage() {
-  const products = (await ProductService.getOnSale(60)).sort(
+  const products = (await safe(ProductService.getOnSale(60), [], 'ProductService.getOnSale')).sort(
     (a, b) => (b.discountPercent ?? 0) - (a.discountPercent ?? 0)
   );
   const topDiscount = products.reduce((max, p) => Math.max(max, p.discountPercent ?? 0), 0);

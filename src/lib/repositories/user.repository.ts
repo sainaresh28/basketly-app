@@ -62,7 +62,7 @@ export const UserRepository = {
   },
 
   /** Patches arbitrary top-level fields (profile edits, address book, role, etc). */
-  async update(id: string, patch: Partial<Pick<User, 'name' | 'phone' | 'avatar' | 'addresses' | 'role' | 'email'>>): Promise<void> {
+  async update(id: string, patch: Partial<Pick<User, 'name' | 'phone' | 'avatar' | 'addresses' | 'role' | 'email' | 'preferences'>>): Promise<void> {
     const entries = Object.entries(patch).filter(([, v]) => v !== undefined);
     if (entries.length === 0) return;
     const names: Record<string, string> = {};

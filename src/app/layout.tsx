@@ -1,8 +1,9 @@
 import React from 'react';
 import type { Metadata, Viewport } from 'next';
-import { Barlow_Condensed, DM_Sans } from 'next/font/google';
+import { Barlow_Condensed, DM_Sans, Caveat } from 'next/font/google';
 import '../styles/tailwind.css';
 import MobileBottomNav from '@/components/layout/MobileBottomNav';
+import ThemeSync from '@/components/layout/ThemeSync';
 import { AuthProvider } from '@/lib/auth-context';
 
 const barlowCondensed = Barlow_Condensed({
@@ -17,6 +18,13 @@ const dmSans = DM_Sans({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-sans',
+  display: 'swap',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-script',
   display: 'swap',
 });
 
@@ -41,10 +49,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${barlowCondensed.variable} ${dmSans.variable}`}>
+    <html lang="en" className={`${barlowCondensed.variable} ${dmSans.variable} ${caveat.variable}`}>
       <body className={dmSans.className}>
         <div className="grain-overlay" aria-hidden="true" />
         <AuthProvider>
+          <ThemeSync />
           <div className="pb-16 lg:pb-0 print:pb-0">{children}</div>
           <MobileBottomNav />
         </AuthProvider>

@@ -6,10 +6,54 @@ import { TABLES } from '@/lib/db/tables';
 import { OrderRepository } from '@/lib/repositories/order.repository';
 import { CartRepository } from '@/lib/repositories/cart.repository';
 import { CartService } from '@/lib/services/cart.service';
+import { UserRepository } from '@/lib/repositories/user.repository';
+import { EmailService } from '@/lib/services/email.service';
+import { CouponService } from '@/lib/services/coupon.service';
 import { createRazorpayOrder, verifyRazorpaySignature, createRazorpayRefund } from '@/lib/payments/razorpay';
 import { ValidationError, NotFoundError, ForbiddenError } from '@/lib/errors/app-error';
 import type { ShippingAddressInput } from '@/lib/validation/schemas';
 import { CANCELLABLE_STATUSES, type Order, type OrderItem, type OrderStatus, type OrderStatusEvent } from '@/types';
+import type { Cart } from '@/types';
+
+/**
+ * DynamoDB transactions reject multiple operations on the same key. Two
+ * cart lines can now share a product (different size/color of the same
+ * item), so stock decrements are merged per product id here before being
+ * used in a TransactWriteCommand — one Update per distinct product, even
+ * though the order's line items still keep one row per cart line.
+ */
+function buildStockDecrementItems(cartItems: Cart['items']) {
+  const stockByProduct = new Map<string, number>();
+  for (const i of cartItems) {
+    stockByProduct.set(i.productId, (stockByProduct.get(i.productId) || 0) + i.quantity);
+  }
+  return Array.from(stockByProduct.entries()).map(([productId, qty]) => ({
+    Update: {
+      TableName: TABLES.PRODUCTS,
+      Key: { id: productId },
+      UpdateExpression: 'SET stock = stock - :qty',
+      ConditionExpression: 'stock >= :qty',
+      ExpressionAttributeValues: { ':qty': qty },
+    },
+  }));
+}
+
+/**
+ * Best-effort order-confirmation email. Never throws — a failure here must
+ * never roll back or fail an already-placed, already-paid-for order. Logs
+ * and swallows any error instead.
+ */
+async function sendOrderConfirmation(userId: string, order: Order): Promise<void> {
+  try {
+    const user = await UserRepository.findById(userId);
+    if (!user?.email) return;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const orderUrl = `${siteUrl}/orders/${order.id}`;
+    await EmailService.sendOrderConfirmationEmail(user.email, order, orderUrl);
+  } catch (err) {
+    console.error('[order] failed to send order confirmation email:', err);
+  }
+}
 
 export const OrderService = {
   /**
@@ -18,7 +62,7 @@ export const OrderService = {
    * money moves yet and nothing is written to the Orders table — that only
    * happens once the payment is verified (see confirmPayment below).
    */
-  async startCheckout(userId: string) {
+  async startCheckout(userId: string, couponCode?: string) {
     const cart = await CartService.getCart(userId);
     if (cart.items.length === 0) {
       throw new ValidationError('Your cart is empty');
@@ -29,13 +73,22 @@ export const OrderService = {
       }
     }
 
+    // Preview only — doesn't consume the coupon's usage count, since the
+    // user hasn't paid yet and may abandon checkout.
+    let discount = 0;
+    if (couponCode) {
+      const evaluation = await CouponService.preview(couponCode, cart.subtotal);
+      discount = evaluation.discount;
+    }
+    const chargeTotal = Math.max(0, cart.total - discount);
+
     // Razorpay caps `receipt` at 56 chars. A full UUID userId plus prefix and
     // timestamp can exceed that, so we only use the first 8 chars of the
     // userId — still enough to spot which user an order belongs to when
     // scanning receipts, without risking the length limit.
     const receipt = `bkt_${userId.slice(0, 8)}_${Date.now()}`;
-    const razorpayOrder = await createRazorpayOrder(cart.total, receipt);
-    return { razorpayOrder, cart };
+    const razorpayOrder = await createRazorpayOrder(chargeTotal, receipt);
+    return { razorpayOrder, cart, discount, couponCode: couponCode?.toUpperCase() };
   },
 
   /**
@@ -51,6 +104,7 @@ export const OrderService = {
       razorpay_payment_id: string;
       razorpay_signature: string;
       shippingAddress: ShippingAddressInput;
+      couponCode?: string;
     }
   ): Promise<Order> {
     const isValid = verifyRazorpaySignature(
@@ -67,6 +121,28 @@ export const OrderService = {
       throw new ValidationError('Your cart is empty — nothing to confirm');
     }
 
+    // The payment has already been captured by Razorpay for the discounted
+    // amount shown at checkout, so this must never fail the order — if the
+    // coupon's usage count can't be atomically redeemed now (e.g. it was
+    // exhausted by someone else in the meantime), fall back to honoring the
+    // already-charged discount via a read-only preview rather than
+    // stranding a captured payment or overcharging the customer.
+    let discount = 0;
+    let couponCode: string | undefined;
+    if (input.couponCode) {
+      try {
+        const evaluation = await CouponService.redeem(input.couponCode, cart.subtotal);
+        discount = evaluation.discount;
+        couponCode = evaluation.coupon.code;
+      } catch {
+        const evaluation = await CouponService.preview(input.couponCode, cart.subtotal).catch(() => null);
+        if (evaluation) {
+          discount = evaluation.discount;
+          couponCode = evaluation.coupon.code;
+        }
+      }
+    }
+
     const now = new Date().toISOString();
     const items: OrderItem[] = cart.items.map((i) => ({
       productId: i.productId,
@@ -74,6 +150,7 @@ export const OrderService = {
       image: i.product.images[0],
       price: i.product.price,
       quantity: i.quantity,
+      selectedOptions: i.selectedOptions,
     }));
 
     const order: Order = {
@@ -82,7 +159,7 @@ export const OrderService = {
       items,
       subtotal: cart.subtotal,
       shipping: cart.shipping,
-      total: cart.total,
+      total: Math.max(0, cart.total - discount),
       status: 'paid',
       shippingAddress: input.shippingAddress,
       paymentMethod: 'online',
@@ -90,6 +167,7 @@ export const OrderService = {
       razorpayOrderId: input.razorpay_order_id,
       razorpayPaymentId: input.razorpay_payment_id,
       statusHistory: [{ status: 'paid', at: now, note: 'Payment received' }],
+      ...(couponCode ? { couponCode, discount } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -103,15 +181,7 @@ export const OrderService = {
       await ddb.send(
         new TransactWriteCommand({
           TransactItems: [
-            ...cart.items.map((i) => ({
-              Update: {
-                TableName: TABLES.PRODUCTS,
-                Key: { id: i.productId },
-                UpdateExpression: 'SET stock = stock - :qty',
-                ConditionExpression: 'stock >= :qty',
-                ExpressionAttributeValues: { ':qty': i.quantity },
-              },
-            })),
+            ...buildStockDecrementItems(cart.items),
             { Put: { TableName: TABLES.ORDERS, Item: order } },
           ],
         })
@@ -124,6 +194,7 @@ export const OrderService = {
     }
 
     await CartRepository.clearForUser(userId);
+    await sendOrderConfirmation(userId, order);
     return order;
   },
 
@@ -132,7 +203,7 @@ export const OrderService = {
    * placed and stock reserved immediately; payment itself is collected by the
    * courier when the parcel is delivered.
    */
-  async placeCodOrder(userId: string, shippingAddress: ShippingAddressInput): Promise<Order> {
+  async placeCodOrder(userId: string, shippingAddress: ShippingAddressInput, couponCode?: string): Promise<Order> {
     const cart = await CartService.getCart(userId);
     if (cart.items.length === 0) {
       throw new ValidationError('Your cart is empty');
@@ -143,6 +214,18 @@ export const OrderService = {
       }
     }
 
+    // No payment is captured upfront for COD, so the coupon can be redeemed
+    // directly here — a genuine redemption failure (expired/exhausted
+    // between preview and placing the order) should block the order rather
+    // than silently drop the discount, since nothing has been charged yet.
+    let discount = 0;
+    let resolvedCouponCode: string | undefined;
+    if (couponCode) {
+      const evaluation = await CouponService.redeem(couponCode, cart.subtotal);
+      discount = evaluation.discount;
+      resolvedCouponCode = evaluation.coupon.code;
+    }
+
     const now = new Date().toISOString();
     const items: OrderItem[] = cart.items.map((i) => ({
       productId: i.productId,
@@ -150,6 +233,7 @@ export const OrderService = {
       image: i.product.images[0],
       price: i.product.price,
       quantity: i.quantity,
+      selectedOptions: i.selectedOptions,
     }));
 
     const order: Order = {
@@ -158,12 +242,13 @@ export const OrderService = {
       items,
       subtotal: cart.subtotal,
       shipping: cart.shipping,
-      total: cart.total,
+      total: Math.max(0, cart.total - discount),
       status: 'processing',
       shippingAddress,
       paymentMethod: 'cod',
       paymentStatus: 'unpaid',
       statusHistory: [{ status: 'processing', at: now, note: 'Order placed — pay on delivery' }],
+      ...(resolvedCouponCode ? { couponCode: resolvedCouponCode, discount } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -172,15 +257,7 @@ export const OrderService = {
       await ddb.send(
         new TransactWriteCommand({
           TransactItems: [
-            ...cart.items.map((i) => ({
-              Update: {
-                TableName: TABLES.PRODUCTS,
-                Key: { id: i.productId },
-                UpdateExpression: 'SET stock = stock - :qty',
-                ConditionExpression: 'stock >= :qty',
-                ExpressionAttributeValues: { ':qty': i.quantity },
-              },
-            })),
+            ...buildStockDecrementItems(cart.items),
             { Put: { TableName: TABLES.ORDERS, Item: order } },
           ],
         })
@@ -193,6 +270,7 @@ export const OrderService = {
     }
 
     await CartRepository.clearForUser(userId);
+    await sendOrderConfirmation(userId, order);
     return order;
   },
 

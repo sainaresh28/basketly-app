@@ -3,7 +3,7 @@ import React from 'react';
 import Link from 'next/link';
 import AppImage from '@/components/ui/AppImage';
 import { useCartStore } from '@/lib/cart-store';
-import { formatPrice } from '@/utils/format';
+import { formatPrice, formatSelectedOptions } from '@/utils/format';
 
 export default function CartDrawer() {
   const { items, isDrawerOpen, closeDrawer, removeItem, updateQuantity, getSubtotal } = useCartStore();
@@ -15,7 +15,7 @@ export default function CartDrawer() {
   return (
     <div className="fixed inset-0 z-50">
       <div
-        className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
         onClick={closeDrawer}
       />
       <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-background shadow-2xl flex flex-col slide-in-right">
@@ -56,7 +56,7 @@ export default function CartDrawer() {
           ) : (
             <div className="space-y-4">
               {items?.map(item => (
-                <div key={item?.productId} className="flex gap-4 py-4 border-b border-border last:border-0">
+                <div key={item?.lineId} className="flex gap-4 py-4 border-b border-border last:border-0">
                   <Link
                     href={`/product-detail?id=${item?.productId}`}
                     onClick={closeDrawer}
@@ -79,10 +79,13 @@ export default function CartDrawer() {
                       {item?.product?.name}
                     </Link>
                     <p className="text-xs text-muted-foreground mt-0.5">{item?.product?.brand}</p>
+                    {item?.selectedOptions && Object.keys(item.selectedOptions).length > 0 && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{formatSelectedOptions(item.selectedOptions)}</p>
+                    )}
                     <div className="flex items-center justify-between mt-2">
                       <div className="flex items-center gap-1 border border-border rounded-full overflow-hidden">
                         <button
-                          onClick={() => updateQuantity(item?.productId, item?.quantity - 1)}
+                          onClick={() => updateQuantity(item?.lineId, item?.quantity - 1)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-muted transition-colors text-foreground"
                           aria-label="Decrease"
                         >
@@ -92,7 +95,7 @@ export default function CartDrawer() {
                         </button>
                         <span className="w-7 text-center text-sm font-semibold text-foreground">{item?.quantity}</span>
                         <button
-                          onClick={() => updateQuantity(item?.productId, item?.quantity + 1)}
+                          onClick={() => updateQuantity(item?.lineId, item?.quantity + 1)}
                           className="w-7 h-7 flex items-center justify-center hover:bg-muted transition-colors text-foreground"
                           aria-label="Increase"
                         >
@@ -105,7 +108,7 @@ export default function CartDrawer() {
                     </div>
                   </div>
                   <button
-                    onClick={() => removeItem(item?.productId)}
+                    onClick={() => removeItem(item?.lineId)}
                     className="flex-shrink-0 self-start p-1.5 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                     aria-label="Remove item"
                   >

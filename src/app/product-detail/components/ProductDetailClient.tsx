@@ -8,6 +8,7 @@ import { useWishlistStore } from '@/lib/wishlist-store';
 import type { Product } from '@/types';
 import ProductGallery from './ProductGallery';
 import ProductInformation from './ProductInformation';
+import ProductReviews from './ProductReviews';
 import RelatedProducts from './RelatedProducts';
 
 interface ProductDetailClientProps {
@@ -17,14 +18,17 @@ interface ProductDetailClientProps {
 
 export default function ProductDetailClient({ product, relatedProducts }: ProductDetailClientProps) {
   const [quantity, setQuantity] = useState(1);
+  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
   const addItem = useCartStore(s => s.addItem);
   const addToast = useCartStore(s => s.addToast);
   const { toggleItem, isWishlisted } = useWishlistStore();
   const wishlisted = isWishlisted(product.id);
 
+  const setOption = (key: string, value: string) => setSelectedOptions((prev) => ({ ...prev, [key]: value }));
+
   const handleAddToCart = () => {
     if (product.stock === 0) return;
-    addItem(product, quantity);
+    addItem(product, quantity, Object.keys(selectedOptions).length > 0 ? selectedOptions : undefined);
   };
 
   const handleWishlist = () => {
@@ -55,11 +59,16 @@ export default function ProductDetailClient({ product, relatedProducts }: Produc
           product={product}
           quantity={quantity}
           setQuantity={setQuantity}
+          selectedOptions={selectedOptions}
+          setOption={setOption}
           onAddToCart={handleAddToCart}
           onWishlist={handleWishlist}
           wishlisted={wishlisted}
         />
       </div>
+
+      {/* Reviews */}
+      <ProductReviews productId={product.id} rating={product.rating} reviewCount={product.reviewCount} ratingDistribution={product.ratingDistribution} />
 
       {/* Related Products */}
       <RelatedProducts products={relatedProducts} />

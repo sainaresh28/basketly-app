@@ -25,12 +25,12 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display font-black text-display-md text-foreground uppercase">You May Also Like</h2>
         <div className="flex gap-2">
-          <button onClick={() => scroll('left')} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-foreground hover:text-white hover:border-foreground transition-all" aria-label="Scroll left">
+          <button onClick={() => scroll('left')} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-dark-surface hover:text-white hover:border-dark-surface transition-all" aria-label="Scroll left">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <button onClick={() => scroll('right')} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-foreground hover:text-white hover:border-foreground transition-all" aria-label="Scroll right">
+          <button onClick={() => scroll('right')} className="w-9 h-9 rounded-full border border-border flex items-center justify-center hover:bg-dark-surface hover:text-white hover:border-dark-surface transition-all" aria-label="Scroll right">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -42,21 +42,23 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
         {products.map(product => (
           <div key={product.id} className="flex-shrink-0 w-52 group">
             <div className="relative rounded-2xl overflow-hidden bg-muted aspect-[3/4] mb-3">
-              <AppImage
-                src={product.images[0]}
-                alt={`${product.name} — related product`}
-                fill
-                sizes="208px"
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-              />
+              <Link href={`/product-detail?id=${product.id}`} className="absolute inset-0 z-0 block" aria-label={product.name}>
+                <AppImage
+                  src={product.images[0]}
+                  alt={`${product.name} — related product`}
+                  fill
+                  sizes="208px"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              </Link>
               {product.discountPercent && (
-                <div className="absolute top-2 left-2">
+                <div className="absolute top-2 left-2 pointer-events-none">
                   <span className="badge-sale">{product.discountPercent}% Off</span>
                 </div>
               )}
               <button
-                onClick={() => addItem(product, 1)}
-                className="absolute bottom-2 left-2 right-2 py-2 bg-foreground text-white text-[10px] font-bold uppercase tracking-widest rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-primary"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); addItem(product, 1); }}
+                className="absolute bottom-2 left-2 right-2 z-10 py-2 bg-dark-surface text-white text-[10px] font-bold uppercase tracking-widest rounded-xl opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all hover:bg-primary"
               >
                 Add to Cart
               </button>

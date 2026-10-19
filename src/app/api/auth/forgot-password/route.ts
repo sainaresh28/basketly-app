@@ -21,13 +21,12 @@ export const POST = withErrorHandling(async (req: Request) => {
       // protection intact.
       await EmailService.sendPasswordResetEmail(email, result.resetUrl);
     } else {
-      // No email provider configured yet — log the link server-side and, in
-      // non-production, hand it back to the client too so the flow stays
-      // testable without setting up email.
+      // No email provider configured yet — log the link server-side and hand
+      // it back to the client too so the flow stays usable without setting
+      // up email. NODE_ENV is production on most hosts by default, so gating
+      // this on NODE_ENV silently hid the only way to reset a password.
       console.log(`[password-reset] ${email} -> ${result.resetUrl}`);
-      if (process.env.NODE_ENV !== 'production') {
-        devResetUrl = result.resetUrl;
-      }
+      devResetUrl = result.resetUrl;
     }
   }
 

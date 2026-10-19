@@ -1,7 +1,8 @@
 'use client';
 import React, { useState } from 'react';
-import type { Category, FilterState } from '@/types';
+import type { AttributeDefinition, Category, FilterState } from '@/types';
 import { formatPrice } from '@/utils/format';
+import { UNIVERSAL_COLORS } from '@/lib/catalog/universal-options';
 
 interface ProductFiltersProps {
   categories: Category[];
@@ -12,6 +13,11 @@ interface ProductFiltersProps {
   onUpdateFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
   onClear: () => void;
   activeCount: number;
+  /** Filters generated from the selected category's schema — empty unless exactly one category is checked. */
+  attributeFilters?: AttributeDefinition[];
+  onToggleAttribute?: (attrKey: string, value: string, exclusive?: boolean) => void;
+  /** Replaces an attribute's value outright — used by free-entry (number/text) filters. */
+  onSetAttributeValue?: (attrKey: string, value: string) => void;
 }
 
 function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -34,7 +40,7 @@ function FilterSection({ title, children }: { title: string; children: React.Rea
 }
 
 export default function ProductFilters({
-  categories, brands, priceMin, priceMax, filters, onUpdateFilter, onClear, activeCount,
+  categories, brands, priceMin, priceMax, filters, onUpdateFilter, onClear, activeCount, attributeFilters, onToggleAttribute, onSetAttributeValue,
 }: ProductFiltersProps) {
   const toggleCategory = (catId: string) => {
     const updated = filters.categories.includes(catId)
@@ -68,7 +74,7 @@ export default function ProductFilters({
               <div
                 className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                   filters.categories.includes(cat.id)
-                    ? 'bg-foreground border-foreground'
+                    ? 'bg-dark-surface border-dark-surface'
                     : 'border-border group-hover:border-foreground'
                 }`}
                 onClick={() => toggleCategory(cat.id)}
@@ -136,7 +142,7 @@ export default function ProductFilters({
               <div
                 className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
                   filters.brands.includes(brand)
-                    ? 'bg-foreground border-foreground'
+                    ? 'bg-dark-surface border-dark-surface'
                     : 'border-border group-hover:border-foreground'
                 }`}
                 onClick={() => toggleBrand(brand)}
@@ -203,6 +209,186 @@ export default function ProductFilters({
           ))}
         </div>
       </FilterSection>
+
+      {attributeFilters && attributeFilters.length > 0 && (
+        <>
+          <div className="mb-4 -mt-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-primary">More filters for this category</span>
+          </div>
+          {attributeFilters.map((attr) => {
+            const selected = filters.attributes[attr.key] || [];
+            if (attr.type === 'boolean') {
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <label className="flex items-center gap-2.5 cursor-pointer group">
+                    <div
+                      className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        selected.includes('true') ? 'bg-dark-surface border-dark-surface' : 'border-border group-hover:border-foreground'
+                      }`}
+                      onClick={() => onToggleAttribute?.(attr.key, 'true')}
+                    >
+                      {selected.includes('true') && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">Yes</span>
+                  </label>
+                </FilterSection>
+              );
+            }
+            if (attr.type === 'checkbox') {
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <div className="space-y-2">
+                    {(attr.options || []).map((opt) => {
+                      const active = selected.includes(opt);
+                      return (
+                        <label key={opt} className="flex items-center gap-2.5 cursor-pointer group">
+                          <div
+                            className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                              active ? 'bg-dark-surface border-dark-surface' : 'border-border group-hover:border-foreground'
+                            }`}
+                            onClick={() => onToggleAttribute?.(attr.key, opt)}
+                          >
+                            {active && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-sm text-foreground/80 group-hover:text-foreground transition-colors">{opt}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              );
+            }
+            if (attr.type === 'size-selector') {
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <div className="flex flex-wrap gap-2">
+                    {(attr.options || []).map((opt) => {
+                      const active = selected.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => onToggleAttribute?.(attr.key, opt)}
+                          aria-pressed={active}
+                          className={`min-w-[2.5rem] h-9 px-2.5 rounded-lg border text-xs font-bold transition-colors ${
+                            active ? 'bg-dark-surface border-dark-surface text-white' : 'border-border text-foreground hover:border-foreground'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              );
+            }
+            if (attr.type === 'button-group' || attr.type === 'image-swatch') {
+              // Segmented single-choice control. image-swatch renders as a labelled
+              // tile: the type supports per-option images, and falls back to the
+              // label alone since the catalog doesn't carry swatch images yet.
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <div className="inline-flex flex-wrap rounded-xl border border-border overflow-hidden">
+                    {(attr.options || []).map((opt) => {
+                      const active = selected.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => onToggleAttribute?.(attr.key, opt, true)}
+                          aria-pressed={active}
+                          className={`px-3 py-2 text-xs font-semibold border-r border-border last:border-r-0 transition-colors ${
+                            active ? 'bg-dark-surface text-white' : 'text-foreground/80 hover:bg-muted'
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              );
+            }
+            if (attr.type === 'number' || attr.type === 'text') {
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <input
+                    type={attr.type === 'number' ? 'number' : 'text'}
+                    value={selected[0] ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value.trim();
+                      // Stored as a single-element list; an empty box clears the filter.
+                      if (!v) {
+                        if (selected[0]) onToggleAttribute?.(attr.key, selected[0], true);
+                        return;
+                      }
+                      onSetAttributeValue?.(attr.key, v);
+                    }}
+                    placeholder={attr.type === 'number' ? `Minimum ${attr.label.toLowerCase()}` : `Search ${attr.label.toLowerCase()}`}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </FilterSection>
+              );
+            }
+            if (attr.type === 'color-swatch') {
+              return (
+                <FilterSection key={attr.key} title={attr.label}>
+                  <div className="flex flex-wrap gap-2.5">
+                    {(attr.options || []).map((opt) => {
+                      const active = selected.includes(opt);
+                      return (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => onToggleAttribute?.(attr.key, opt)}
+                          aria-label={opt}
+                          aria-pressed={active}
+                          title={opt}
+                          className={`h-8 w-8 rounded-full flex items-center justify-center transition-all ${
+                            active ? 'ring-2 ring-offset-2 ring-foreground' : 'ring-1 ring-border hover:ring-foreground/50'
+                          }`}
+                        >
+                          <span className="h-6 w-6 rounded-full border border-black/10" style={{ backgroundColor: UNIVERSAL_COLORS[opt] || '#8A8580' }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </FilterSection>
+              );
+            }
+            return (
+              <FilterSection key={attr.key} title={attr.label}>
+                <div className="flex flex-wrap gap-2">
+                  {(attr.options || []).map((opt) => {
+                    const active = selected.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => onToggleAttribute?.(attr.key, opt, attr.type === 'radio' || attr.type === 'select')}
+                        aria-pressed={active}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                          active ? 'bg-dark-surface border-dark-surface text-white' : 'border-border text-foreground/80 hover:border-foreground'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </FilterSection>
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }

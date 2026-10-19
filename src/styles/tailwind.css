@@ -55,7 +55,28 @@
   --blue-accent: #238DFB;
 }
 
+:root.dark {
+  --background: #14100C;
+  --foreground: #F5EFE6;
+  --primary: #FF6B3D;
+  --primary-foreground: #14100C;
+  --secondary: #FFC85C;
+  --secondary-foreground: #14100C;
+  --accent: #FFC85C;
+  --accent-foreground: #14100C;
+  --muted: #221B14;
+  --muted-foreground: #B3A594;
+  --card: #1C1712;
+  --card-foreground: #F5EFE6;
+  --border: #322A21;
+  --input: #221B14;
+  --ring: #FF6B3D;
+}
+
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
   * {
     box-sizing: border-box;
     border-color: var(--border);
@@ -172,7 +193,7 @@
   }
 
   .btn-dark {
-    background-color: var(--foreground);
+    background-color: var(--dark-surface);
     color: #FFFFFF;
     font-family: var(--font-sans);
     font-weight: 600;
@@ -214,7 +235,7 @@
     outline: none;
   }
   .btn-outline:hover {
-    background-color: var(--foreground);
+    background-color: var(--dark-surface);
     color: #FFFFFF;
   }
 
@@ -263,7 +284,7 @@
     border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 500;
-    background-color: var(--foreground);
+    background-color: var(--dark-surface);
     color: #FFFFFF;
     transition: all 0.2s;
   }
@@ -385,7 +406,7 @@
   }
 
   .badge-new {
-    background-color: var(--foreground);
+    background-color: var(--dark-surface);
     color: white;
     font-size: 0.6875rem;
     font-weight: 700;
